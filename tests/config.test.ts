@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest'
 import { Config, DEFAULT_EFFORTS, resolveConfig } from '../src/config'
 
 describe('Config schema', () => {
-  it('defaults to the full seven-level map', () => {
-    expect(Config({}).efforts).toEqual(DEFAULT_EFFORTS)
+  it('leaves the catalog override absent by default', () => {
+    expect(Config({}).efforts).toBeUndefined()
   })
 
   it('keeps an explicit efforts map', () => {
@@ -36,8 +36,13 @@ describe('resolveConfig', () => {
     expect(() => resolveConfig({ efforts: {} })).toThrow(/at least one reasoning level/)
   })
 
-  it('returns a detached default map', () => {
+  it('returns no override when configuration omits efforts', () => {
     const resolved = resolveConfig({})
+    expect(resolved.efforts).toBeUndefined()
+  })
+
+  it('returns a detached explicit override map', () => {
+    const resolved = resolveConfig({ efforts: DEFAULT_EFFORTS })
     expect(resolved.efforts).toEqual(DEFAULT_EFFORTS)
     expect(resolved.efforts).not.toBe(DEFAULT_EFFORTS)
   })

@@ -9,10 +9,11 @@ import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { SettingsConflictError, settingsNamespace } from '@deepseek-ai/dsh-settings'
 import { MemorySettings } from './support/memory-settings'
-import { DEFAULT_EFFORTS } from '../src/config'
-import { apply } from '../src/index'
+import { apply, SETTINGS_NAMESPACE } from '../src/index'
 
 const NS = settingsNamespace('llm-pi-ai')
+const GPT_EFFORTS = { off: null, low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' }
+const GROK_EFFORTS = { off: null, low: 'low', medium: 'medium', high: 'high' }
 
 /** The raw `llm-pi-ai` user section of the test context. */
 function userOf(ctx: Context): Record<string, any> | undefined {
@@ -25,7 +26,7 @@ function seedProviders(): Record<string, unknown> {
   return {
     acme: {
       models: [
-        { id: 'fresh' },
+        { id: 'gpt-5.4' },
         { id: 'kept-false', reasoningEfforts: false },
       ],
     },
@@ -53,8 +54,9 @@ describe('apply', () => {
     const ctx = await boot()
     apply(ctx, {})
     await vi.waitFor(() => {
+      expect((ctx.settings as MemorySettings).configurationClientNamespaces()).toContain(SETTINGS_NAMESPACE)
       const models = userOf(ctx)?.providers['acme'].models
-      expect(models[0].reasoningEfforts).toEqual(DEFAULT_EFFORTS)
+      expect(models[0].reasoningEfforts).toEqual(GPT_EFFORTS)
       expect(models[1].reasoningEfforts).toBe(false)
     })
   })
@@ -63,30 +65,72 @@ describe('apply', () => {
     const ctx = await boot()
     apply(ctx, {})
     await vi.waitFor(() => {
-      expect(userOf(ctx)?.providers['acme'].models[0].reasoningEfforts).toEqual(DEFAULT_EFFORTS)
+      expect(userOf(ctx)?.providers['acme'].models[0].reasoningEfforts).toEqual(GPT_EFFORTS)
     })
     await ctx.settings.update(NS, {
       providers: {
         acme: {
           models: [
-            { id: 'fresh', reasoningEfforts: DEFAULT_EFFORTS },
+            { id: 'gpt-5.4', reasoningEfforts: GPT_EFFORTS },
             { id: 'kept-false', reasoningEfforts: false },
-            { id: 'later' },
+            { id: 'grok-4.5' },
           ],
         },
       },
     })
     await vi.waitFor(() => {
       const models = userOf(ctx)?.providers['acme'].models
-      expect(models[2].reasoningEfforts).toEqual(DEFAULT_EFFORTS)
+      expect(models[2].reasoningEfforts).toEqual(GROK_EFFORTS)
     })
+  })
+
+  it('projects an explicit capability override onto only the exact provider route', async () => {
+    const ctx = await boot()
+    await ctx.settings.update(NS, {
+      providers: {
+        acme: { models: [{ id: 'gpt-5.4', reasoningEfforts: false }] },
+        mirror: { models: [{ id: 'gpt-5.4', reasoningEfforts: false }] },
+      },
+    })
+    apply(ctx, {})
+    await vi.waitFor(() => {
+      expect(ctx.settings.describe().some(entry => entry.ns === SETTINGS_NAMESPACE)).toBe(true)
+    })
+    await ctx.settings.update(SETTINGS_NAMESPACE, {
+      models: {
+        acme: { 'gpt-5.4': { off: null, max: 'maximum' } },
+      },
+    })
+    await vi.waitFor(() => {
+      const providers = userOf(ctx)?.providers
+      expect(providers['acme'].models[0].reasoningEfforts).toEqual({ off: null, max: 'maximum' })
+      expect(providers['mirror'].models[0].reasoningEfforts).toBe(false)
+    })
+  })
+
+  it('does not project inherited properties for prototype-named routes', async () => {
+    const ctx = await boot()
+    ;(ctx.settings as unknown as { publish(document: Record<string, unknown>): void }).publish({
+      [NS]: {
+        providers: JSON.parse('{"__proto__":{"models":[{"id":"toString","reasoningEfforts":false}]}}'),
+      },
+    })
+    const mutate = vi.spyOn(ctx.settings, 'mutate')
+    apply(ctx, {})
+    await flush()
+    await flush()
+
+    expect(mutate).not.toHaveBeenCalled()
+    const providers = userOf(ctx)?.providers as Record<string, { models: Array<{ reasoningEfforts: unknown }> }>
+    expect(Object.hasOwn(providers, '__proto__')).toBe(true)
+    expect(providers['__proto__']!.models[0]!.reasoningEfforts).toBe(false)
   })
 
   it('writes nothing when every entry already declares a value', async () => {
     const ctx = await boot()
     apply(ctx, {})
     await vi.waitFor(() => {
-      expect(userOf(ctx)?.providers['acme'].models[0].reasoningEfforts).toEqual(DEFAULT_EFFORTS)
+      expect(userOf(ctx)?.providers['acme'].models[0].reasoningEfforts).toEqual(GPT_EFFORTS)
     })
     const mutate = vi.spyOn(ctx.settings, 'mutate')
     // Any raw-document change re-runs the watcher; a no-op pass must not write.
@@ -111,7 +155,7 @@ describe('apply', () => {
     apply(ctx, {})
     await vi.waitFor(() => {
       expect(calls).toBeGreaterThanOrEqual(2)
-      expect(userOf(ctx)?.providers['acme'].models[0].reasoningEfforts).toEqual(DEFAULT_EFFORTS)
+      expect(userOf(ctx)?.providers['acme'].models[0].reasoningEfforts).toEqual(GPT_EFFORTS)
     })
   })
 

@@ -1,0 +1,47 @@
+/** Localized copy owned by the reasoning settings section. */
+
+export const zh = {
+  nav: '思考等级',
+  title: '思考等级',
+  loading: '正在加载…',
+  loadFailed: '加载失败',
+  retry: '重试',
+  readOnly: '当前设置为只读。',
+  empty: '模型页面中还没有用户添加的模型。',
+  supportsReasoning: '支持思考',
+  availableEfforts: '可用等级',
+  wireValue: '请求值',
+  notSent: '不发送',
+  defaultEffort: '默认等级',
+  providerDefault: '提供方默认',
+  save: '保存更改',
+  reset: '撤销更改',
+  saved: '设置已保存',
+  needsLevel: '至少启用一个非 off 等级。',
+  invalidWire: '已启用等级必须填写请求值。',
+  invalidDefault: '默认等级必须属于当前可用等级。',
+} as const
+
+export const en: Record<keyof typeof zh, string> = {
+  nav: 'Reasoning',
+  title: 'Reasoning levels',
+  loading: 'Loading…',
+  loadFailed: 'Failed to load',
+  retry: 'Retry',
+  readOnly: 'Settings are read-only.',
+  empty: 'No user-added models exist on the Models page.',
+  supportsReasoning: 'Supports reasoning',
+  availableEfforts: 'Available levels',
+  wireValue: 'Request value',
+  notSent: 'Not sent',
+  defaultEffort: 'Default level',
+  providerDefault: 'Provider default',
+  save: 'Save changes',
+  reset: 'Discard changes',
+  saved: 'Settings saved',
+  needsLevel: 'Enable at least one level other than off.',
+  invalidWire: 'Every enabled level needs a request value.',
+  invalidDefault: 'The default must be one of the available levels.',
+}
+
+export type ReasoningSettingsLocaleKey = keyof typeof zh

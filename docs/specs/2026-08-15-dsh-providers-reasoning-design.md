@@ -1,77 +1,84 @@
-# dsh-providers-reasoning 设计文档
+# dsh-reasoning-effort 设计文档
 
 日期：2026-08-15
-状态：已确认（用户批准后进入实现）
+状态：已实现
 
 ## 1. 目标
 
-让第三方 provider 的模型在 web composer 中与原生 DeepSeek 一样出现「推理等级」选择器。具体行为：**凡是出现在 `llm-pi-ai` settings 用户层的模型条目，只要 `reasoningEfforts` 缺失，就自动补齐 7 个推理等级**。
+为用户在 Harness「模型」页面添加的 `llm-pi-ai` 模型提供两项能力：
 
-## 2. 根因（源码链）
+1. 管理模型实际提供的 `reasoningEfforts` 及 wire 映射；
+2. 按精确 `provider + model` 记忆默认 effort，并让 composer 显示值、会话选择和真实请求保持一致。
 
-- `ui-model-selection` 的 `ModelSelect` 只在 `model.reasoning !== undefined` 时渲染 Effort 行。
-- `apiproxy.buildModelCatalog()` 只在 `ctx.llm.resolveModelInfo()` 返回 `reasoning` 时把该字段带进目录。
-- `llm-pi-ai` 的 `reasoningInfo()` 在模型 descriptor 无 reasoning 元数据时返回空。
-- 手工声明路由的模型没有 catalog base，`resolveModelReasoning()` 在 `reasoningEfforts === undefined` 时得出 `reasoning: false`。
-- web「添加自定义提供方」与模型列表编辑器刻意不写 `reasoningEfforts`。
+本地 `model.json` 只提供保守的基础能力目录。未命中目录的用户模型仍可在页面中手工配置；未命中、低置信度或歧义模型不会被自动补齐。
 
-因此外部插件唯一被平台允许的修复点是把 `reasoningEfforts` 写进 `llm-pi-ai` 的用户 settings 层。
+## 2. 状态所有权
 
-## 3. 架构
+两类状态由不同 namespace 持有：
 
-宿主端单插件，无客户端产物：
+- `providers-reasoning.models.<provider>.<model>`：插件拥有的显式能力覆盖，值为 `false` 或 effort -> wire 映射；
+- `agent-default-model.reasoningDefaults.<provider>.<model>`：Harness 拥有的精确路由默认 effort。
 
+`llm-pi-ai.providers.*.models[*].reasoningEfforts` 是 Adapter 消费的投影，不是设置页面的事实源。`model.json` 是包内只读基础目录，永不写回。
+
+## 3. Harness 通用契约
+
+Harness 的 `LlmRuntime` 接受一个通用模型 reasoning 默认值来源。解析精确模型元数据时：
+
+1. 来源返回的 exact-route effort 若仍在 Adapter 公布的 efforts 中，则覆盖 Adapter `defaultEffort`；
+2. 来源值失效或模型不支持 reasoning 时忽略，保留 Adapter 默认值；
+3. 显式请求 effort 始终优先于所有默认值。
+
+`agent-default-model` 注册该来源。旧顶层 `reasoningEffort` 只作为当前顶层 provider/model 的迁移回退；新写入使用嵌套 `reasoningDefaults`。`saveSelection()` 通过 path mutation 原子更新顶层选择、兼容字段及当前 exact route，保留其他模型的默认值。
+
+默认值优先级：
+
+```text
+同一活动路由的会话显式选择
+  > exact provider + model 用户默认值
+  > Adapter defaultEffort
+  > Provider 默认行为
 ```
-src/config.ts   —— schemastery 配置 schema + 语义校验（默认 7 档）
-src/enrich.ts   —— 纯函数：用户层文档 → 需要补的 settings path ops
-src/index.ts    —— apply：监听事件，幂等地执行补全
-```
 
-依赖注入：`inject = ['settings']`。事件源：`settings/document-updated`、`settings/updated`（按 namespace 过滤），微任务合并；插件行位于 profile patch 层，故首次执行时 `llm-pi-ai` 已注册。
+设置页更新影响未来模型切换和新会话，不静默改写活动会话。composer 中成功选择 effort 会写回该 exact route，延续 Harness「成功选择成为默认值」的现有语义。
 
-## 4. 关键算法
+## 4. Host 插件
 
-1. `settings.describe({ redactSecrets: true })` 找到 `llm-pi-ai` descriptor，取其 `user` 与 `revision`。
-2. 遍历 `providers.<route>.models[*]` 与 `providers.<route>.modelOverrides.<id>`：
-   - `reasoningEfforts === undefined` → 生成 `set` op，值为配置的档位映射副本；
-   - 其他任何值（映射、`false`、`null`）→ 跳过。
-3. ops 非空时 `settings.mutate(NS, ops, revision)`。
-4. `SettingsConflictError` → 排一次重试；其余错误记录日志。只读 settings 或无该 namespace → 静默跳过。
-5. 自己的写入触发事件后，下一轮 ops 为空，循环自然终止。
+Host 注册插件 namespace，并监听它与 `llm-pi-ai` 的 settings 更新：
 
-## 5. 默认值
+1. 遍历 `llm-pi-ai` raw user 层的 `models` 和 `modelOverrides`；
+2. exact-route 插件覆盖存在时，显式投影该值；
+3. 无覆盖且条目已有任意 `reasoningEfforts` 值时原样保留，包括映射、`false`、`null` 和旧七档；
+4. 字段缺失时，仅对本地目录高置信命中的模型补齐目录档位；
+5. 使用整数组/整字典 path op 与 revision 乐观锁，冲突后排一次重试；相同值不产生 op，监听循环自然收敛。
 
-| 档位 | 线级拼写 |
-| --- | --- |
-| off | null（不下发） |
-| minimal | minimal |
-| low | low |
-| medium | medium |
-| high | high |
-| xhigh | xhigh |
-| max | max |
+Loader `config.efforts` 仍可统一替换目录命中模型的自动补齐值，但不覆盖页面中的 exact-route 显式设置。
 
-可通过插件行 `config.efforts` 覆盖；校验规则：仅 `off` 可为空、至少保留一个非 off 档位、键限 pi-ai 七档。
+## 5. Client 页面
 
-## 6. 边界与错误处理
+Client bundle 通过 `settings.section` 注册独立页面，数据源为一次 `settings.describe()`：
 
-- 不写组合 base 层；未收窄的整条内置 catalog 不逐模型改写。
-- 尊重用户显式声明；插件只补缺失。
-- 非法已存值交还上游报错，插件不猜测修复。
-- 并发安全：revision 乐观锁 + 冲突重试；事件驱动、无轮询、无循环写。
+- 只枚举 `llm-pi-ai` descriptor 的 raw `user.providers.*.models`；
+- 不枚举 composed value、内置 catalog、`modelOverrides` 或 session model directory；
+- 同名模型按 provider 分组并保持独立；
+- 支持 reasoning 开关、七档复选、非 off wire 值编辑和默认等级选择；
+- `off` 与未配置不同：前者是明确选择，后者保留 Provider 默认行为；
+- 至少需要一个非 off 等级，默认值必须属于当前可用等级。
 
-## 7. 测试
+页面保留本地草稿。写入分别使用两个 namespace 的 revision；外部 invalidation 会刷新已加载页面，但不会覆盖正在编辑的草稿。任何一侧写入失败都会保留草稿并展示可重试错误。
 
-- `enrich.test.ts`：补缺、不覆盖、`false`/`null` 保留、modelOverrides 路径、畸形文档容错、每 op 值对象独立。
-- `config.test.ts`：默认 7 档、未知键拒绝、off-only/空映射拒绝、非 off 空拼写拒绝。
-- `index.test.ts`（真实 MemorySettings + schemastery）：apply 时补全、后续 settings 更新补全新模型、幂等不二次写、revision 冲突重试、只读与 namespace 未注册时惰性。
+## 6. 构建与测试
 
-## 8. 构建与安装
+- `lib/index.js`：Node ESM Host bundle，所有 `@deepseek-ai/*` 保持 external；
+- `lib/client.js`：浏览器 CJS closure factory，通过 `window.__ModuleLoader__.load()` 注册；
+- `model.json`：随包发布的只读目录。
 
-- 构建：esbuild 生成 `lib/index.js`（ESM，`@deepseek-ai/*` 全部 external）。
-- 安装：`dsh plugin --profile web add link:<path>`，并在 `~/.dsh/profiles/web/cordis.patch.yml` 插入 `providers-reasoning` 行。
-- 无需重启：dsh web 自带对 profile patch 文件的 HMR；保存 patch 即热加载，插件当场补全已有模型，后续新增模型经 settings 事件实时补全。
+验证覆盖：目录匹配、自动补齐不覆盖、exact-route 强制覆盖与幂等、namespace 语义校验、只显示用户 models、跨 provider 隔离、默认值 save ops、`off`/失效值、Client slot 注册、Host 设置集成、类型检查、双端构建和 dry-run 打包。
 
-## 9. 非目标
+## 7. 非目标
 
-- 不实现配置网页卡、不改上游 UI、不复制 `llm-pi-ai` 适配器逻辑、不处理 `llm-deepseek`（自带档位）。
+- 不提供添加/删除模型入口；
+- 不编辑 `model.json`；
+- 不修改 `llm-deepseek`；
+- 不把 request 阶段的隐藏补值冒充为 UI 默认选择；
+- 不在插件中复制 Harness 模型选择器或覆盖 `conversation.input.model`。

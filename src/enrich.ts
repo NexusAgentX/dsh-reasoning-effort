@@ -16,11 +16,18 @@
  * replace the array with an object. Replacing the whole array also mirrors
  * how the web Models page writes its model lists.
  *
- * @module dsh-providers-reasoning/enrich
+ * @module dsh-reasoning-effort/enrich
  */
 
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import type { ReasoningEfforts } from './config.js'
+import type { ReasoningCapability } from './plugin-settings.js'
+
+export type ModelEffortResolver = (modelId: string) => ReasoningEfforts | undefined
+export type ModelCapabilityOverrideResolver = (
+  providerId: string,
+  modelId: string,
+) => ReasoningCapability | undefined
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -31,26 +38,68 @@ function copyEfforts(efforts: ReasoningEfforts): ReasoningEfforts {
   return { ...efforts }
 }
 
+function copyCapability(capability: ReasoningCapability): ReasoningCapability {
+  return capability === false ? false : copyEfforts(capability)
+}
+
+/** Compare the small, flat capability value without serializing user data. */
+function capabilityEquals(value: unknown, expected: ReasoningCapability): boolean {
+  if (expected === false) return value === false
+  if (!isPlainObject(value)) return false
+  const valueEntries = Object.entries(value)
+  const expectedEntries = Object.entries(expected)
+  if (valueEntries.length !== expectedEntries.length) return false
+  return expectedEntries.every(([level, wire]) => value[level] === wire)
+}
+
 /**
  * One model entry with the capability declaration added when it was missing;
  * otherwise the entry is returned untouched (identity, not value, matters only
  * for the enclosing array — a deep-equal no-op array never becomes an op).
  */
-function enrichedEntry(entry: unknown, efforts: ReasoningEfforts): unknown {
+function modelIdFor(entry: Record<string, unknown>, fallback?: string): string | undefined {
+  for (const key of ['id', 'model', 'name']) {
+    const value = entry[key]
+    if (typeof value === 'string' && value.length > 0) return value
+  }
+  return fallback
+}
+
+function enrichedEntry(
+  entry: unknown,
+  resolveEfforts: ModelEffortResolver,
+  resolveOverride: ModelCapabilityOverrideResolver,
+  providerId: string,
+  fallbackModelId?: string,
+): unknown {
   if (!isPlainObject(entry)) return entry
+  const modelId = modelIdFor(entry, fallbackModelId)
+  if (modelId === undefined) return entry
+  const override = resolveOverride(providerId, modelId)
+  if (override !== undefined) {
+    if (capabilityEquals(entry['reasoningEfforts'], override)) return entry
+    return { ...entry, reasoningEfforts: copyCapability(override) }
+  }
   if (entry['reasoningEfforts'] !== undefined) return entry
+  const efforts = resolveEfforts(modelId)
+  if (efforts === undefined) return entry
   return { ...entry, reasoningEfforts: copyEfforts(efforts) }
 }
 
 /**
- * Compute the `set` ops that give every model entry missing `reasoningEfforts`
- * the configured map.
+ * Compute the `set` ops that give only catalog-recognized model entries missing
+ * `reasoningEfforts` their supported map.
  * @param user - the raw `llm-pi-ai` user section (detached descriptor copy).
- * @param efforts - the validated map to backfill.
+ * @param resolveEfforts - returns a supported map for a recognized model.
+ * @param resolveOverride - returns an explicit exact-route user override.
  * @returns path ops addressing `providers.<route>.models` and
  *   `providers.<route>.modelOverrides`, in document order.
  */
-export function computeEnrichmentOps(user: unknown, efforts: ReasoningEfforts): readonly SettingsPathOp[] {
+export function computeEnrichmentOps(
+  user: unknown,
+  resolveEfforts: ModelEffortResolver,
+  resolveOverride: ModelCapabilityOverrideResolver = () => undefined,
+): readonly SettingsPathOp[] {
   if (!isPlainObject(user)) return []
   const providers = user['providers']
   if (!isPlainObject(providers)) return []
@@ -61,27 +110,32 @@ export function computeEnrichmentOps(user: unknown, efforts: ReasoningEfforts): 
     const profile = profileValue
 
     const models = profile['models']
-    if (Array.isArray(models) && models.some(entry => entry !== undefined
-      && isPlainObject(entry) && entry['reasoningEfforts'] === undefined)) {
-      ops.push({
-        op: 'set',
-        path: ['providers', route, 'models'],
-        value: models.map(entry => enrichedEntry(entry, efforts)),
-      })
+    if (Array.isArray(models)) {
+      const next = models.map(entry => enrichedEntry(entry, resolveEfforts, resolveOverride, route))
+      if (next.some((entry, index) => entry !== models[index])) {
+        ops.push({
+          op: 'set',
+          path: ['providers', route, 'models'],
+          value: next,
+        })
+      }
     }
 
     const overrides = profile['modelOverrides']
-    if (isPlainObject(overrides) && Object.values(overrides).some(entry =>
-      isPlainObject(entry) && entry['reasoningEfforts'] === undefined)) {
+    if (isPlainObject(overrides)) {
       const next: Record<string, unknown> = {}
+      let changed = false
       for (const [model, entry] of Object.entries(overrides)) {
-        next[model] = enrichedEntry(entry, efforts)
+        next[model] = enrichedEntry(entry, resolveEfforts, resolveOverride, route, model)
+        changed ||= next[model] !== entry
       }
-      ops.push({
-        op: 'set',
-        path: ['providers', route, 'modelOverrides'],
-        value: next,
-      })
+      if (changed) {
+        ops.push({
+          op: 'set',
+          path: ['providers', route, 'modelOverrides'],
+          value: next,
+        })
+      }
     }
   }
 

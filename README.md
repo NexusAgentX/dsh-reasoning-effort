@@ -1,10 +1,10 @@
-# dsh-providers-reasoning
+# dsh-reasoning-effort
 
-宿主端 dsh 插件：给 **所有第三方 provider 模型自动补齐 7 个推理等级**，让 web 输入框右下角的模型选择器对自定义供应商也出现「推理等级」（Effort）行——体验与原生 DeepSeek 一致。
+dsh Host + Client 插件：为本地能力目录中已确认支持 `reasoning_effort` 的第三方模型补齐推理等级，并提供独立设置页面管理每个精确 `provider + model` 路由的可用等级和默认等级。
 
 ## 问题
 
-`@deepseek-ai/dsh-llm-pi-ai` 只在模型条目声明了 `reasoningEfforts` 时向 composer 上报推理元数据；web 的「添加自定义提供方」卡片刻意不写这个字段，因此第三方模型只能选模型、选不了推理等级。本插件补齐该字段：
+`@deepseek-ai/dsh-llm-pi-ai` 只在模型条目声明了 `reasoningEfforts` 时向 composer 上报推理元数据；web 的「添加自定义提供方」卡片刻意不写这个字段，因此第三方模型只能选模型、选不了推理等级。本插件通过 `model.json` 的本地能力目录，仅对已确认支持 `effort` 的模型补齐该字段：
 
 ```yaml
 reasoningEfforts:
@@ -19,17 +19,21 @@ reasoningEfforts:
 
 ## 行为规则
 
-- **只补缺**：`reasoningEfforts` 完全缺失的模型条目 → 自动写入 7 档；
+- **按能力补缺**：模型名命中本地目录且 `reasoningEfforts` 缺失 → 写入该模型支持的档位；
+- **保守匹配**：模型名先做规范化精确匹配，再做高置信度相似匹配；歧义、低置信度和未收录模型都不写入；
 - **不覆盖**：已有映射、或 `reasoningEfforts: false`（显式声明不推理）→ 原样保留；
 - **不碰组合层**：只修改 settings 用户层（web 新建 provider 和 `settings.yaml` 手写的内容都在这一层）；
 - **幂等**：补完后不会二次写入；与 web 页面并发编辑通过 settings revision 冲突机制重试；
 - **实时**：监听 `settings/document-updated`，新增 provider 后无需重启，composer 立即生效。
+- **精确路由默认值**：同一个 model ID 位于不同 provider 时分别记忆；composer 中成功选择的 effort 会成为该路由的新默认值。
 
-配置入口（可选，默认即 7 档）：
+目录默认包含 23 个常见模型：5 个 OpenAI、7 个 Claude、2 个 DeepSeek、2 个 Grok 和 7 个闭源 Qwen。每项都显式包含 `off: null`；其余档位来自 `models.dev` 的 `reasoning_options[type="effort"]`。
+
+配置入口（可选，仅覆盖已命中模型的目录档位）：
 
 ```yaml
 - id: providers-reasoning
-  name: dsh-providers-reasoning
+  name: dsh-reasoning-effort
   config:
     efforts:
       off:
@@ -41,18 +45,32 @@ reasoningEfforts:
       max: max
 ```
 
+## 设置页面
+
+插件的 Client bundle 通过 Harness 的 `settings.section` 注册「思考等级」页面。页面只枚举 `llm-pi-ai` raw user 层的 `providers.*.models`，也就是用户在 Harness「模型」页面添加的模型；内置 catalog、`modelOverrides` 和 `model.json` 不会成为页面条目。
+
+每个模型可以配置：
+
+- 是否支持 reasoning；关闭时写入 `reasoningEfforts: false`；
+- 七档可用等级及每档实际下发的 wire 值；`off` 表示明确不下发参数；
+- 该精确 `provider + model` 的默认等级，或继续采用 Provider 默认行为。
+
+能力覆盖存入插件自己的 `providers-reasoning` settings namespace，再由 Host 投影到 `llm-pi-ai` 模型条目。默认等级存入 Harness 的 `agent-default-model.reasoningDefaults`，设置页、composer、新会话和实际请求共用这一事实源。
+
+默认值优先级：当前会话对同一路由的显式选择 > 用户保存的精确路由默认值 > Adapter 默认值 > Provider 默认行为。已从模型能力中移除的旧默认值不会下发，而是回退到 Adapter/Provider 默认值。
+
 ## 构建
 
 ```bash
 pnpm install
-pnpm run build   # lib/index.js（宿主端 ESM 单文件）
+pnpm run build   # Host/Client JavaScript bundles + lib/**/*.d.ts
 pnpm test
 ```
 
 ## 安装（本地源码，无需重启正在运行的 dsh web）
 
 ```bash
-cd /absolute/path/to/dsh-providers-reasoning
+cd /absolute/path/to/dsh-reasoning-effort
 pnpm install && pnpm run build
 
 # 1. 先把包链接进 web profile
@@ -62,7 +80,7 @@ dsh plugin --profile web add link:$PWD
 #
 #   - insert:
 #       - id: providers-reasoning
-#         name: dsh-providers-reasoning
+#         name: dsh-reasoning-effort
 #
 # dsh web 自带对该文件的 HMR 监听：保存 patch 后运行中的进程会热加载插件，
 # 并立即补全 settings.yaml 里已有第三方模型的 reasoningEfforts。
@@ -75,11 +93,23 @@ dsh --profile web --dump-config   # 确认 providers-reasoning 行已组合
 grep -A 8 'reasoningEfforts' ~/.dsh/settings.yaml
 ```
 
-浏览器中打开 composer 的模型菜单，第三方模型的「推理等级」行即出现。
+浏览器中打开 composer 的模型菜单，第三方模型的「推理等级」行即出现；设置面板中同时出现独立的「思考等级」页面。
+
+## 模型目录
+
+根目录的 [`model.json`](./model.json) 是随包发布的人工维护目录。每项包含上下文窗口、最大输出、官方 API 参考价格、可用思考等级及其来源。
+
+- 能力匹配只使用 `model` 和 `aliases`，不依赖用户的 provider 名称；
+- 价格只引用模型厂商官方资料，官方未公开的项目为 `null`，不会使用转售商价格；
+- `models.dev` 仅用于筛选能力与档位；价格来源不参与匹配；
+- `latest` 这类动态名称只能作为 alias，不会增加目录模型数。
 
 ## 已知边界
 
 - 仅处理 `llm-pi-ai`；原生 `llm-deepseek` 自带档位，不受影响。
+- 需要同时包含 `agent-default-model.reasoningDefaults`、LLM 默认值解析和 Settings 配置客户端 exposure 契约的 Harness 版本；peer ranges 已明确排除已知不兼容的 `0.1.0-rc.6`。首个兼容 Harness 版本发布前本包仍不能发布，发布时须把临时的 `>0.1.0-rc.6` 收敛为该真实版本下限。
+- 页面目前不提供删除 capability override／恢复自动目录的入口；若手工删除 `providers-reasoning` 中的 override，已投影到 `llm-pi-ai` 的旧 map 不会自动判定所有权并回退，请直接在页面保存目标能力。
+- 未收录、低置信度或不支持 `effort` 的模型不会被默认设置思考等级。
 - 对「整条内置 catalog 未收窄」的路由不逐模型改写（没有用户层模型条目可写；这类内置模型沿用 pi-ai catalog 自带的推理元数据）。
 - 非法值（如 `reasoningEfforts: null` / `{}`）保留原样，交由 `llm-pi-ai` 自身报错，插件不猜测修复。
 - 默认拼写=档位名，适用于 OpenAI 兼容方言；使用 DeepSeek `thinking` 等方言的私有网关请按上游文档配置 `compat.thinkingFormat`。
