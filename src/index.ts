@@ -22,13 +22,19 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+// Type-only: installs the agent/request event contract on Cordis Events.
+import type {} from '@deepseek-ai/dsh-agent'
+import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 // Type-only: pulls the `ctx.settings` merge and the settings event vocabulary.
 import type {} from '@deepseek-ai/dsh-settings'
+// Type-only: extends ctx.typert with generated-contribution registration.
+import type {} from '@deepseek-ai/dsh-typert-registry'
 import { installSettingsSection, settingsNamespace, SettingsConflictError } from '@deepseek-ai/dsh-settings'
 import type { SettingsDescriptor } from '@deepseek-ai/dsh-settings'
 import { resolveConfig } from './config.js'
 import type { ResolvedConfig } from './config.js'
 import {
+  AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID,
   PI_AI_SETTINGS_NAMESPACE_ID,
   PLUGIN_SETTINGS_NAMESPACE_ID,
 } from './constants.js'
@@ -39,12 +45,21 @@ import {
   ReasoningPluginSettingsSchema,
   validateReasoningPluginSettings,
 } from './plugin-settings.js'
-import type { ReasoningCapability, ReasoningPluginSettings } from './plugin-settings.js'
+import type { ReasoningPluginSettings } from './plugin-settings.js'
+import { ReasoningEffortRemoteService } from './remote.js'
+import { TYPERT_HOST } from './remote-contract.js'
+import {
+  computeLegacyDefaultOps,
+  effectiveRouteCapability,
+  nonEmptyString,
+  routeCapability,
+  validRouteDefault,
+} from './routes.js'
 
 export const name = 'dsh-reasoning-effort'
 
 /** The plugin only acts where the settings seam exists. */
-export const inject = ['settings']
+export const inject = ['settings', 'typert']
 
 /** Cordis Loader schema. */
 export { Config, DEFAULT_EFFORTS, REASONING_LEVELS } from './config.js'
@@ -59,21 +74,7 @@ export type { ReasoningCapability, ReasoningPluginSettings } from './plugin-sett
 const PI_AI_NS = settingsNamespace(PI_AI_SETTINGS_NAMESPACE_ID)
 /** This plugin's exact-route capability overrides. */
 export const SETTINGS_NAMESPACE = settingsNamespace(PLUGIN_SETTINGS_NAMESPACE_ID)
-
-type ConfigurationClientSettings = {
-  registerConfigurationClientNamespace(ns: typeof SETTINGS_NAMESPACE): () => void
-}
-
-/** Resolve an exact override without consulting inherited object properties. */
-function routeOverride(
-  settings: ReasoningPluginSettings,
-  provider: string,
-  model: string,
-): ReasoningCapability | undefined {
-  if (!Object.hasOwn(settings.models, provider)) return undefined
-  const models = settings.models[provider]!
-  return Object.hasOwn(models, model) ? models[model] : undefined
-}
+const AGENT_DEFAULT_NS = settingsNamespace(AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID)
 
 /**
  * Plugin body. Everything happens inside one effect so HMR / disposal removes
@@ -93,46 +94,104 @@ export function apply(ctx: Context, config: unknown): void {
     onChange: () => { notifySettingsChange() },
     validate: validateReasoningPluginSettings,
   })
-  ctx.inject(['settings'], (sctx) => {
-    const expose = (sctx.settings as unknown as Partial<ConfigurationClientSettings>)
-      .registerConfigurationClientNamespace
-    if (typeof expose !== 'function') {
-      throw new Error('dsh-reasoning-effort requires Harness settings configuration-client exposure support')
+  new ReasoningEffortRemoteService(ctx, ctx.settings)
+  ctx.effect(
+    () => ctx.typert.register(TYPERT_HOST),
+    'dsh-reasoning-effort: strict Remote contribution',
+  )
+
+  ctx.effect(() => ctx.on('agent/request', async (_payload, next) => {
+    const call = await next()
+    if (call.reasoningEffort !== undefined || call.provider === undefined || call.model === undefined) return call
+    try {
+      const descriptors = ctx.settings.describe({ redactSecrets: true })
+      const piAi = descriptors.find(descriptor => descriptor.ns === PI_AI_NS)
+      if (piAi === undefined) return call
+      const current = settingsSource()
+      let effort = validRouteDefault(current, piAi.user, call.provider, call.model)
+      if (effort === undefined && !current.legacyDefaultsMigrated) {
+        const legacy = descriptors.find(descriptor => descriptor.ns === AGENT_DEFAULT_NS)?.value
+        if (legacy !== null && typeof legacy === 'object' && !Array.isArray(legacy)) {
+          const value = legacy as Record<string, unknown>
+          const sameRoute = nonEmptyString(value.provider) === call.provider
+            && nonEmptyString(value.model) === call.model
+          const candidate = sameRoute ? nonEmptyString(value.reasoningEffort) : undefined
+          const capability = effectiveRouteCapability(current, piAi.user, call.provider, call.model)
+          if (candidate !== undefined && capability !== undefined && capability !== false
+            && Object.hasOwn(capability, candidate)) effort = candidate
+        }
+      }
+      return effort === undefined ? call : { ...call, reasoningEffort: ReasoningEffortId(effort) }
+    } catch (error) {
+      logger.warn('failed to resolve an exact-route reasoning default')
+      logger.warn(error)
+      return call
     }
-    expose.call(sctx.settings, SETTINGS_NAMESPACE)
-  })
+  }, { global: true, prepend: true }), 'dsh-reasoning-effort: request defaults')
 
   ctx.effect(() => {
     let scheduled = false
+    let disposed = false
     let running: Promise<void> = Promise.resolve()
 
     const run = async (): Promise<void> => {
+      if (disposed) return
       const settings = ctx.settings
       if (!settings.writable) return
 
-      let descriptor: SettingsDescriptor | undefined
+      let descriptors: SettingsDescriptor[]
       try {
-        descriptor = settings.describe({ redactSecrets: true }).find(entry => entry.ns === PI_AI_NS)
+        descriptors = settings.describe({ redactSecrets: true })
       } catch (error) {
-        logger.warn('settings.describe failed for %s', PI_AI_NS)
+        logger.warn('settings.describe failed')
         logger.warn(error)
         return
       }
+      const descriptor = descriptors.find(entry => entry.ns === PI_AI_NS)
       // Not registered (llm-pi-ai absent or still loading). A later document
       // change or a hot-apply triggers another pass; the patch layer runs
       // after the bundles, so this is normally already present at apply time.
       if (descriptor === undefined) return
 
+      const pluginDescriptor = descriptors.find(entry => entry.ns === SETTINGS_NAMESPACE)
+      const agentDefault = descriptors.find(entry => entry.ns === AGENT_DEFAULT_NS)
+      if (pluginDescriptor !== undefined && agentDefault !== undefined
+        && !settingsSource().legacyDefaultsMigrated) {
+        const migratedDefaults = computeLegacyDefaultOps(settingsSource(), descriptor.user, agentDefault.value)
+        const migrationOps = [
+          ...migratedDefaults,
+          { op: 'set' as const, path: ['legacyDefaultsMigrated'], value: true },
+        ]
+        try {
+          if (disposed) return
+          await settings.mutate(SETTINGS_NAMESPACE, migrationOps, pluginDescriptor.revision)
+          if (disposed) return
+          logger.info('migrated %s exact-route reasoning defaults into plugin settings', migratedDefaults.length)
+          schedule()
+          return
+        } catch (error) {
+          if (error instanceof SettingsConflictError) {
+            logger.debug('settings conflict while migrating reasoning defaults; retrying once')
+            schedule()
+            return
+          }
+          logger.warn('failed to migrate exact-route reasoning defaults')
+          logger.warn(error)
+        }
+      }
+
       const ops = computeEnrichmentOps(descriptor.user, modelId => {
         const catalogEfforts = resolveModelEfforts(modelId)
         return catalogEfforts === undefined ? undefined : resolved.efforts ?? catalogEfforts
       }, (providerId, modelId) => {
-        return routeOverride(settingsSource(), providerId, modelId)
+        return routeCapability(settingsSource(), providerId, modelId)
       })
       if (ops.length === 0) return
 
       try {
+        if (disposed) return
         await settings.mutate(PI_AI_NS, ops, descriptor.revision)
+        if (disposed) return
         logger.info('backfilled reasoningEfforts on %s model entries', ops.length)
       } catch (error) {
         if (error instanceof SettingsConflictError) {
@@ -150,11 +209,13 @@ export function apply(ctx: Context, config: unknown): void {
 
     /** Coalesce event bursts into one pass; own writes settle to a no-op. */
     const schedule = (): void => {
-      if (scheduled) return
+      if (disposed || scheduled) return
       scheduled = true
       queueMicrotask(() => {
         scheduled = false
-        running = run().then(undefined, (error: unknown) => {
+        if (disposed) return
+        running = running.then(run).then(undefined, (error: unknown) => {
+          if (disposed) return
           logger.warn('unexpected enrichment failure')
           logger.warn(error)
         })
@@ -162,10 +223,10 @@ export function apply(ctx: Context, config: unknown): void {
     }
 
     const onDocumentUpdated = (ns: string): void => {
-      if (ns === PI_AI_NS || ns === SETTINGS_NAMESPACE) schedule()
+      if (ns === PI_AI_NS || ns === SETTINGS_NAMESPACE || ns === AGENT_DEFAULT_NS) schedule()
     }
     const onUpdated = (ns: string): void => {
-      if (ns === PI_AI_NS || ns === SETTINGS_NAMESPACE) schedule()
+      if (ns === PI_AI_NS || ns === SETTINGS_NAMESPACE || ns === AGENT_DEFAULT_NS) schedule()
     }
     const offDocument = ctx.on('settings/document-updated', onDocumentUpdated)
     const offUpdated = ctx.on('settings/updated', onUpdated)
@@ -174,11 +235,13 @@ export function apply(ctx: Context, config: unknown): void {
     // (bundles → profile patch layer) and a hot-apply of this very row.
     schedule()
 
-    return () => {
+    return async () => {
+      disposed = true
+      scheduled = false
       notifySettingsChange = () => {}
       offDocument()
       offUpdated()
-      void running
+      await running
     }
   }, 'dsh-reasoning-effort: reasoning-effort backfill')
 }

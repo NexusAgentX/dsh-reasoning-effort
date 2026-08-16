@@ -109,6 +109,18 @@ describe('computeEnrichmentOps', () => {
     }])
   })
 
+  it('preserves an own __proto__ model override while rebuilding the dictionary', () => {
+    const overrides = JSON.parse('{"__proto__":{"reasoningEfforts":false},"known":{"contextWindow":1000}}')
+    const ops = computeEnrichmentOps({
+      providers: { openai: { modelOverrides: overrides } },
+    }, resolveKnown)
+    const value = (ops[0] as { value: Record<string, unknown> }).value
+
+    expect(Object.hasOwn(value, '__proto__')).toBe(true)
+    expect(value['__proto__']).toEqual({ reasoningEfforts: false })
+    expect(value['known']).toEqual({ contextWindow: 1000, reasoningEfforts: EFFORTS })
+  })
+
   it('skips malformed entries without failing', () => {
     const ops = computeEnrichmentOps({
       providers: {

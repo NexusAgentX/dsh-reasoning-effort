@@ -1,8 +1,8 @@
 /** Pure projection and save planning for the reasoning settings page. */
 
-import type { SettingsNamespaceView, SettingsPathOpView } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ReasoningEfforts } from '../config.js'
 import type { ReasoningCapability } from '../plugin-settings.js'
+import type { ReasoningNamespaceDocument, ReasoningPathOp } from '../remote-contract.js'
 import {
   AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID,
   PI_AI_SETTINGS_NAMESPACE_ID,
@@ -58,8 +58,8 @@ export interface DraftValidationError {
 
 /** Atomic operations split by their owning settings namespaces. */
 export interface ReasoningSavePlan {
-  pluginOps: SettingsPathOpView[]
-  agentDefaultOps: SettingsPathOpView[]
+  pluginOps: ReasoningPathOp[]
+  agentDefaultOps: ReasoningPathOp[]
   errors: DraftValidationError[]
 }
 
@@ -104,9 +104,9 @@ function nestedValue(root: unknown, first: string, second: string): unknown {
 }
 
 function namespaceOf(
-  namespaces: readonly SettingsNamespaceView[],
+  namespaces: readonly ReasoningNamespaceDocument[],
   id: string,
-): SettingsNamespaceView | undefined {
+): ReasoningNamespaceDocument | undefined {
   return namespaces.find(namespace => namespace.ns === id)
 }
 
@@ -115,7 +115,7 @@ function namespaceOf(
  * `modelOverrides` stay out of the page by construction.
  */
 export function collectReasoningSettings(
-  namespaces: readonly SettingsNamespaceView[],
+  namespaces: readonly ReasoningNamespaceDocument[],
   writable: boolean,
 ): ReasoningSettingsSnapshot {
   const piAi = namespaceOf(namespaces, PI_AI_SETTINGS_NAMESPACE_ID)
@@ -125,8 +125,10 @@ export function collectReasoningSettings(
   const providers = isRecord(piAiUser['providers']) ? piAiUser['providers'] : {}
   const pluginValue = isRecord(plugin?.value) ? plugin.value : {}
   const pluginModels = isRecord(pluginValue['models']) ? pluginValue['models'] : {}
+  const pluginDefaults = isRecord(pluginValue['defaults']) ? pluginValue['defaults'] : {}
+  const legacyDefaultsMigrated = pluginValue['legacyDefaultsMigrated'] === true
   const agentValue = isRecord(agentDefault?.value) ? agentDefault.value : {}
-  const reasoningDefaults = isRecord(agentValue['reasoningDefaults']) ? agentValue['reasoningDefaults'] : {}
+  const oldReasoningDefaults = isRecord(agentValue['reasoningDefaults']) ? agentValue['reasoningDefaults'] : {}
   const currentProvider = nonEmptyString(agentValue['provider'])
   const currentModel = nonEmptyString(agentValue['model'])
   const legacyReasoningEffort = nonEmptyString(agentValue['reasoningEffort'])
@@ -157,7 +159,8 @@ export function collectReasoningSettings(
         : hasDeclared
           ? declared
           : resolveModelEfforts(model)
-      const storedDefault = nonEmptyString(nestedValue(reasoningDefaults, provider, model))
+      const storedDefault = nonEmptyString(nestedValue(pluginDefaults, provider, model))
+      const oldStoredDefault = nonEmptyString(nestedValue(oldReasoningDefaults, provider, model))
       const legacyDefault = provider === currentProvider && model === currentModel
         ? legacyReasoningEffort
         : undefined
@@ -168,7 +171,7 @@ export function collectReasoningSettings(
         model,
         modelName: nonEmptyString(entry['name']) ?? model,
         capability: copyCapability(capability),
-        defaultEffort: storedDefault ?? legacyDefault,
+        defaultEffort: storedDefault ?? (legacyDefaultsMigrated ? undefined : oldStoredDefault ?? legacyDefault),
       })
     }
   }
@@ -234,13 +237,14 @@ export function buildReasoningSavePlan(
   drafts: Readonly<Record<string, ReasoningModelDraft>>,
   dirty?: ReasoningDirtyFields,
 ): ReasoningSavePlan {
-  const pluginOps: SettingsPathOpView[] = []
-  const agentDefaultOps: SettingsPathOpView[] = []
+  const pluginOps: ReasoningPathOp[] = []
+  const agentDefaultOps: ReasoningPathOp[] = []
   const errors: DraftValidationError[] = []
 
   for (const model of snapshot.models) {
     const draft = drafts[model.key]
     if (draft === undefined) continue
+    const errorsBefore = errors.length
     const draftCapability: ReasoningCapability = draft.enabled ? { ...draft.efforts } : false
     const capabilityChanged = !capabilityEquals(model.capability, draftCapability)
     const defaultChanged = draft.defaultEffort !== model.defaultEffort
@@ -268,6 +272,7 @@ export function buildReasoningSavePlan(
       && (!validationEnabled || !hasOwn(validationEfforts as JsonRecord, validationDefault))) {
       errors.push({ key: model.key, code: 'invalid-default' })
     }
+    if (errors.length !== errorsBefore) continue
 
     if (capabilityDirty && capabilityChanged) {
       pluginOps.push({
@@ -277,18 +282,19 @@ export function buildReasoningSavePlan(
       })
     }
     if (defaultDirty && defaultChanged) {
-      agentDefaultOps.push(draft.defaultEffort === undefined
-        ? { op: 'unset', path: ['reasoningDefaults', model.provider, model.model] }
+      pluginOps.push(draft.defaultEffort === undefined
+        ? { op: 'unset', path: ['defaults', model.provider, model.model] }
         : {
             op: 'set',
-            path: ['reasoningDefaults', model.provider, model.model],
+            path: ['defaults', model.provider, model.model],
             value: draft.defaultEffort,
           })
-      if (model.provider === snapshot.currentProvider && model.model === snapshot.currentModel) {
-        agentDefaultOps.push(draft.defaultEffort === undefined
-          ? { op: 'unset', path: ['reasoningEffort'] }
-          : { op: 'set', path: ['reasoningEffort'], value: draft.defaultEffort })
-      }
+    }
+    if (defaultDirty && model.provider === snapshot.currentProvider && model.model === snapshot.currentModel
+      && draft.defaultEffort !== snapshot.legacyReasoningEffort) {
+      agentDefaultOps.push(draft.defaultEffort === undefined
+        ? { op: 'unset', path: ['reasoningEffort'] }
+        : { op: 'set', path: ['reasoningEffort'], value: draft.defaultEffort })
     }
   }
 

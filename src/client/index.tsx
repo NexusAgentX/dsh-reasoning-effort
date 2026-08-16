@@ -8,8 +8,11 @@ import {
 } from 'react'
 import type { ReactNode } from 'react'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
-import { Button, IconCheckOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  Button,
+  IconCheckOutline16,
+  IconChevronDownOutline14,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 // Type-only imports install the settings and locale context/slot merges.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -20,6 +23,8 @@ import {
   PLUGIN_SETTINGS_NAMESPACE_ID,
   REASONING_LEVELS,
 } from '../constants.js'
+import { TYPERT_REMOTE } from '../remote-contract.js'
+import type { ReasoningClientRemote } from '../remote-contract.js'
 import { ReasoningSettingsController } from './controller.js'
 import type { ReasoningSettingsState } from './controller.js'
 import {
@@ -109,6 +114,7 @@ function Loaded({ controller, t }: ReasoningSettingsInjected): ReactNode {
     capabilities: new Set(), defaults: new Set(),
   }))
   const [saved, setSaved] = useState(false)
+  const [expandedModels, setExpandedModels] = useState<ReadonlySet<string>>(() => new Set())
   const snapshot = state.snapshot
   const editing = dirty.capabilities.size > 0 || dirty.defaults.size > 0
 
@@ -189,6 +195,7 @@ function Loaded({ controller, t }: ReasoningSettingsInjected): ReactNode {
     )
   }
   if (snapshot === null) return null
+  const controlsDisabled = !snapshot.writable || state.saving
 
   return (
     <div className="dpr-section">
@@ -213,20 +220,38 @@ function Loaded({ controller, t }: ReasoningSettingsInjected): ReactNode {
               const staleDefault = draft.defaultEffort !== undefined
                 && !selectedEfforts.includes(draft.defaultEffort as typeof REASONING_LEVELS[number])
               const defaultSelectId = `dpr-default-${encodeURIComponent(model.key)}`
+              const detailsId = `dpr-details-${encodeURIComponent(model.key)}`
+              const expanded = expandedModels.has(model.key)
               return (
                 <li key={model.key}>
-                  <fieldset className="dpr-model" disabled={!snapshot.writable || state.saving}>
+                  <fieldset className="dpr-model">
                     <legend className="dpr-sr-only">{model.modelName}</legend>
                     <div className="dpr-model-head">
-                      <div className="dpr-model-identity">
-                        <span className="dpr-model-name">{model.modelName}</span>
-                        {model.modelName === model.model ? null : <span className="dpr-model-id">{model.model}</span>}
-                      </div>
+                      <button
+                        className="dpr-model-toggle"
+                        type="button"
+                        aria-expanded={expanded}
+                        aria-controls={detailsId}
+                        onClick={() => setExpandedModels((previous) => {
+                          const next = new Set(previous)
+                          if (!next.delete(model.key)) next.add(model.key)
+                          return next
+                        })}
+                      >
+                        <span className="dpr-model-identity">
+                          <span className="dpr-model-name">{model.modelName}</span>
+                          {model.modelName === model.model ? null : <span className="dpr-model-id">{model.model}</span>}
+                        </span>
+                        <span className="dpr-model-chevron" aria-hidden="true">
+                          <IconChevronDownOutline14 size={14} />
+                        </span>
+                      </button>
                       <label className="dpr-switch-label">
                         <input
                           className="dpr-switch"
                           type="checkbox"
                           role="switch"
+                          disabled={controlsDisabled}
                           checked={draft.enabled}
                           onChange={event => updateDraft(model.key, current => ({
                             ...current,
@@ -240,84 +265,87 @@ function Loaded({ controller, t }: ReasoningSettingsInjected): ReactNode {
                       </label>
                     </div>
 
-                    {draft.enabled ? (
-                      <div className="dpr-efforts">
-                        <div className="dpr-effort-header" aria-hidden="true">
-                          <span>{t('availableEfforts')}</span>
-                          <span>{t('wireValue')}</span>
-                        </div>
-                        {REASONING_LEVELS.map((level) => {
-                          const enabled = Object.prototype.hasOwnProperty.call(draft.efforts, level)
-                          const wire = draft.efforts[level]
-                          return (
-                            <div className="dpr-effort-row" key={level}>
-                              <label className="dpr-level-check">
-                                <input
-                                  className="dpr-checkbox"
-                                  type="checkbox"
-                                  checked={enabled}
-                                  onChange={event => updateDraft(model.key, (current) => {
-                                    const efforts = { ...current.efforts }
-                                    if (event.target.checked) efforts[level] = level === 'off' ? null : level
-                                    else delete efforts[level]
-                                    return {
-                                      ...current,
-                                      efforts,
-                                      defaultEffort: !event.target.checked && current.defaultEffort === level
-                                        ? undefined
-                                        : current.defaultEffort,
-                                    }
-                                  }, model, !event.target.checked && draft.defaultEffort === level
-                                    ? 'both'
-                                    : 'capability')}
-                                />
-                                <span>{level}</span>
-                              </label>
-                              {level === 'off'
-                                ? <span className="dpr-off-wire">{t('notSent')}</span>
-                                : (
+                    <div id={detailsId} hidden={!expanded}>
+                      {draft.enabled ? (
+                        <div className="dpr-efforts">
+                          <div className="dpr-effort-header" aria-hidden="true">
+                            <span>{t('availableEfforts')}</span>
+                            <span>{t('wireValue')}</span>
+                          </div>
+                          {REASONING_LEVELS.map((level) => {
+                            const enabled = Object.prototype.hasOwnProperty.call(draft.efforts, level)
+                            const wire = draft.efforts[level]
+                            return (
+                              <div className="dpr-effort-row" key={level}>
+                                <label className="dpr-level-check">
                                   <input
-                                    className="dpr-wire"
-                                    type="text"
-                                    aria-label={`${level} ${t('wireValue')}`}
-                                    disabled={!enabled}
-                                    value={typeof wire === 'string' ? wire : ''}
-                                    onChange={event => updateDraft(model.key, current => ({
-                                      ...current,
-                                      efforts: { ...current.efforts, [level]: event.target.value },
-                                    }), model, 'capability')}
+                                    className="dpr-checkbox"
+                                    type="checkbox"
+                                    disabled={controlsDisabled}
+                                    checked={enabled}
+                                    onChange={event => updateDraft(model.key, (current) => {
+                                      const efforts = { ...current.efforts }
+                                      if (event.target.checked) efforts[level] = level === 'off' ? null : level
+                                      else delete efforts[level]
+                                      return {
+                                        ...current,
+                                        efforts,
+                                        defaultEffort: !event.target.checked && current.defaultEffort === level
+                                          ? undefined
+                                          : current.defaultEffort,
+                                      }
+                                    }, model, !event.target.checked && draft.defaultEffort === level
+                                      ? 'both'
+                                      : 'capability')}
                                   />
-                                )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ) : null}
+                                  <span>{level}</span>
+                                </label>
+                                {level === 'off'
+                                  ? <span className="dpr-off-wire">{t('notSent')}</span>
+                                  : (
+                                    <input
+                                      className="dpr-wire"
+                                      type="text"
+                                      aria-label={`${level} ${t('wireValue')}`}
+                                      disabled={controlsDisabled || !enabled}
+                                      value={typeof wire === 'string' ? wire : ''}
+                                      onChange={event => updateDraft(model.key, current => ({
+                                        ...current,
+                                        efforts: { ...current.efforts, [level]: event.target.value },
+                                      }), model, 'capability')}
+                                    />
+                                  )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : null}
 
-                    <div className="dpr-default-row">
-                      <label className="dpr-default-label" htmlFor={defaultSelectId}>{t('defaultEffort')}</label>
-                      <select
-                        id={defaultSelectId}
-                        className="dpr-default-select"
-                        disabled={!draft.enabled}
-                        value={draft.defaultEffort ?? ''}
-                        onChange={event => updateDraft(model.key, current => ({
-                          ...current,
-                          defaultEffort: event.target.value === '' ? undefined : event.target.value,
-                        }), model, 'default')}
-                      >
-                        <option value="">{t('providerDefault')}</option>
-                        {staleDefault ? <option value={draft.defaultEffort}>{draft.defaultEffort}</option> : null}
-                        {selectedEfforts.map(level => <option value={level} key={level}>{level}</option>)}
-                      </select>
-                    </div>
-                    {rowErrors.length > 0 ? (
-                      <div className="dpr-row-errors" role="alert">
-                        {rowErrors.map(error => (
-                          <p className="dpr-error" key={error.code}>{validationText(error, t)}</p>
-                        ))}
+                      <div className="dpr-default-row">
+                        <label className="dpr-default-label" htmlFor={defaultSelectId}>{t('defaultEffort')}</label>
+                        <select
+                          id={defaultSelectId}
+                          className="dpr-default-select"
+                          disabled={controlsDisabled || !draft.enabled}
+                          value={draft.defaultEffort ?? ''}
+                          onChange={event => updateDraft(model.key, current => ({
+                            ...current,
+                            defaultEffort: event.target.value === '' ? undefined : event.target.value,
+                          }), model, 'default')}
+                        >
+                          <option value="">{t('providerDefault')}</option>
+                          {staleDefault ? <option value={draft.defaultEffort}>{draft.defaultEffort}</option> : null}
+                          {selectedEfforts.map(level => <option value={level} key={level}>{level}</option>)}
+                        </select>
                       </div>
-                    ) : null}
+                      {rowErrors.length > 0 ? (
+                        <div className="dpr-row-errors" role="alert">
+                          {rowErrors.map(error => (
+                            <p className="dpr-error" key={error.code}>{validationText(error, t)}</p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </fieldset>
                 </li>
               )
@@ -343,11 +371,28 @@ function Loaded({ controller, t }: ReasoningSettingsInjected): ReactNode {
   )
 }
 
-/** Register locale, invalidations, styles, and the independent settings page. */
-export function apply(ctx: ClientContext): void {
+/** Register the private Remote and settings page. */
+export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
+  const remote = ctx.remote as ReasoningClientRemote
+  const disposeRemote = await remote.$mount(TYPERT_REMOTE)
+  try {
+    await ctx.plugin({
+      name: 'dsh-reasoning-effort:client',
+      inject: ['remote.providersReasoning'],
+      apply: (scope: ClientContext) => {
+        installClient(scope, (scope.remote as ReasoningClientRemote).providersReasoning)
+      },
+    })
+  } catch (error) {
+    await disposeRemote()
+    throw error
+  }
+  return async () => { await disposeRemote() }
+}
+
+function installClient(ctx: ClientContext, remoteNamespace: ReasoningClientRemote['providersReasoning']): void {
   ctx.effect(() => ctx.locale.register(LOCALE_NAMESPACE, { zh, en }), 'providers-reasoning: dictionaries')
-  const connection = ctx.get('connection') as ConnectionHandle
-  const controller = new ReasoningSettingsController(connection.api)
+  const controller = new ReasoningSettingsController(remoteNamespace)
   const t = ctx.locale.bind(LOCALE_NAMESPACE) as ReasoningSettingsInjected['t']
 
   ctx.effect(() => {

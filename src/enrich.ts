@@ -126,8 +126,11 @@ export function computeEnrichmentOps(
       const next: Record<string, unknown> = {}
       let changed = false
       for (const [model, entry] of Object.entries(overrides)) {
-        next[model] = enrichedEntry(entry, resolveEfforts, resolveOverride, route, model)
-        changed ||= next[model] !== entry
+        const enriched = enrichedEntry(entry, resolveEfforts, resolveOverride, route, model)
+        Object.defineProperty(next, model, {
+          value: enriched, enumerable: true, configurable: true, writable: true,
+        })
+        changed ||= enriched !== entry
       }
       if (changed) {
         ops.push({

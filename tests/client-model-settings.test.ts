@@ -1,7 +1,7 @@
 /** Client projection and revision-fenced save-plan tests. */
 
 import { describe, expect, it } from 'vitest'
-import type { SettingsNamespaceView } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ReasoningNamespaceDocument } from '../src/remote-contract'
 import {
   buildReasoningSavePlan,
   collectReasoningSettings,
@@ -10,11 +10,13 @@ import {
   modelRouteKey,
 } from '../src/client/model-settings'
 
-function view(input: Partial<SettingsNamespaceView> & Pick<SettingsNamespaceView, 'ns'>): SettingsNamespaceView {
+function view(
+  input: Partial<ReasoningNamespaceDocument> & Pick<ReasoningNamespaceDocument, 'ns'>,
+): ReasoningNamespaceDocument {
   return {
-    schema: {}, value: {}, applies: 'live', secrets: [], revision: 0,
+    value: {}, user: {}, revision: 0,
     ...input,
-  } as SettingsNamespaceView
+  } as ReasoningNamespaceDocument
 }
 
 function fixture() {
@@ -22,7 +24,6 @@ function fixture() {
     view({
       ns: 'llm-pi-ai' as never,
       revision: 4,
-      base: { providers: { base: { models: [{ id: 'base-only' }] } } },
       user: {
         providers: {
           alpha: {
@@ -46,6 +47,9 @@ function fixture() {
       value: {
         models: {
           alpha: { 'gpt-5.4': { off: null, max: 'maximum' } },
+        },
+        defaults: {
+          alpha: { 'gpt-5.4': 'max' },
         },
       },
     }),
@@ -74,7 +78,7 @@ describe('collectReasoningSettings', () => {
       ['alpha', 'outside-catalog'],
       ['beta', 'gpt-5.4'],
     ])
-    expect(snapshot.models.some(model => model.model === 'base-only' || model.model === 'hidden')).toBe(false)
+    expect(snapshot.models.some(model => model.model === 'hidden')).toBe(false)
 
     const alpha = snapshot.models.find(model => model.key === modelRouteKey('alpha', 'gpt-5.4'))!
     const beta = snapshot.models.find(model => model.key === modelRouteKey('beta', 'gpt-5.4'))!
@@ -99,6 +103,28 @@ describe('collectReasoningSettings', () => {
       }),
     ], true)
     expect(snapshot.models.map(model => model.defaultEffort)).toEqual(['high', undefined])
+  })
+
+  it('ignores legacy route defaults after the one-time migration marker', () => {
+    const snapshot = collectReasoningSettings([
+      view({
+        ns: 'llm-pi-ai' as never,
+        user: { providers: { first: { models: [{ id: 'same' }] } } },
+      }),
+      view({
+        ns: 'providers-reasoning' as never,
+        value: { models: {}, defaults: {}, legacyDefaultsMigrated: true },
+      }),
+      view({
+        ns: 'agent-default-model' as never,
+        value: {
+          provider: 'first', model: 'same', reasoningEffort: 'high',
+          reasoningDefaults: { first: { same: 'high' } },
+        },
+      }),
+    ], true)
+    expect(snapshot.models[0]?.defaultEffort).toBeUndefined()
+    expect(snapshot.legacyReasoningEffort).toBe('high')
   })
 
   it('treats prototype-named provider and model ids as own exact-route keys', () => {
@@ -151,13 +177,15 @@ describe('buildReasoningSavePlan', () => {
     }
     const plan = buildReasoningSavePlan(snapshot, drafts)
     expect(plan.errors).toEqual([])
-    expect(plan.pluginOps).toEqual([{
-      op: 'set',
-      path: ['models', 'alpha', 'gpt-5.4'],
-      value: { off: null, high: 'wire-high' },
-    }])
+    expect(plan.pluginOps).toEqual([
+      {
+        op: 'set',
+        path: ['models', 'alpha', 'gpt-5.4'],
+        value: { off: null, high: 'wire-high' },
+      },
+      { op: 'set', path: ['defaults', 'alpha', 'gpt-5.4'], value: 'high' },
+    ])
     expect(plan.agentDefaultOps).toEqual([
-      { op: 'set', path: ['reasoningDefaults', 'alpha', 'gpt-5.4'], value: 'high' },
       { op: 'set', path: ['reasoningEffort'], value: 'high' },
     ])
   })
@@ -169,8 +197,8 @@ describe('buildReasoningSavePlan', () => {
     drafts[alpha] = { enabled: true, efforts: { off: null, high: 'high' }, defaultEffort: 'off' }
     let plan = buildReasoningSavePlan(snapshot, drafts)
     expect(plan.errors).toEqual([])
-    expect(plan.agentDefaultOps[0]).toEqual({
-      op: 'set', path: ['reasoningDefaults', 'alpha', 'gpt-5.4'], value: 'off',
+    expect(plan.pluginOps[1]).toEqual({
+      op: 'set', path: ['defaults', 'alpha', 'gpt-5.4'], value: 'off',
     })
 
     drafts[alpha] = { enabled: true, efforts: { off: null, high: 'high' }, defaultEffort: 'max' }
@@ -181,12 +209,11 @@ describe('buildReasoningSavePlan', () => {
     drafts[alpha] = draftsOf(snapshot.models)[alpha]!
     drafts[beta] = { enabled: false, efforts: {}, defaultEffort: undefined }
     plan = buildReasoningSavePlan(snapshot, drafts)
-    expect(plan.pluginOps).toEqual([{
-      op: 'set', path: ['models', 'beta', 'gpt-5.4'], value: false,
-    }])
-    expect(plan.agentDefaultOps).toEqual([
-      { op: 'unset', path: ['reasoningDefaults', 'beta', 'gpt-5.4'] },
+    expect(plan.pluginOps).toEqual([
+      { op: 'set', path: ['models', 'beta', 'gpt-5.4'], value: false },
+      { op: 'unset', path: ['defaults', 'beta', 'gpt-5.4'] },
     ])
+    expect(plan.agentDefaultOps).toEqual([])
   })
 
   it('requires a non-off level with valid wire spelling', () => {

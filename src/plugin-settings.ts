@@ -12,6 +12,10 @@ export type ReasoningCapability = false | ReasoningEfforts
 export interface ReasoningPluginSettings {
   /** provider -> model -> explicit capability override. */
   models: Record<string, Record<string, ReasoningCapability>>
+  /** provider -> model -> exact-route default reasoning level. */
+  defaults: Record<string, Record<string, string>>
+  /** Prevent legacy Harness defaults from being re-imported after the first migration. */
+  legacyDefaultsMigrated: boolean
 }
 
 const reasoningEffortsSchema = z.dict(
@@ -27,11 +31,13 @@ const capabilitySchema = z.union([
 /** Runtime schema registered under the plugin's settings namespace. */
 export const ReasoningPluginSettingsSchema: z<ReasoningPluginSettings> = z.object({
   models: z.dict(z.dict(capabilitySchema)).default({}) as unknown as z<ReasoningPluginSettings['models']>,
+  defaults: z.dict(z.dict(z.string())).default({}) as unknown as z<ReasoningPluginSettings['defaults']>,
+  legacyDefaultsMigrated: z.boolean().default(false),
 })
 
 /** Fresh composition base for one plugin installation. */
 export function emptyReasoningPluginSettings(): ReasoningPluginSettings {
-  return { models: {} }
+  return { models: {}, defaults: {}, legacyDefaultsMigrated: false }
 }
 
 /** Enforce the semantic constraints schemastery's nested dict cannot express. */
@@ -45,6 +51,16 @@ export function validateReasoningPluginSettings(settings: ReasoningPluginSetting
         throw new Error(`dsh-reasoning-effort: model keys under provider "${provider}" must be non-empty`)
       }
       if (capability !== false) resolveConfig({ efforts: capability })
+    }
+  }
+  for (const [provider, models] of Object.entries(settings.defaults)) {
+    if (provider.length === 0) {
+      throw new Error('dsh-reasoning-effort: default provider keys must be non-empty')
+    }
+    for (const [model, effort] of Object.entries(models)) {
+      if (model.length === 0 || effort.length === 0) {
+        throw new Error(`dsh-reasoning-effort: defaults under provider "${provider}" need non-empty model and effort values`)
+      }
     }
   }
 }

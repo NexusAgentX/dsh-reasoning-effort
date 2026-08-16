@@ -1,10 +1,6 @@
 /** Host-backed controller for the reasoning settings section. */
 
-import type { IApiClient } from '@deepseek-ai/dsh-api-remotes/client'
-import {
-  AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID,
-  PLUGIN_SETTINGS_NAMESPACE_ID,
-} from '../constants.js'
+import type { ReasoningRemoteNamespace } from '../remote-contract.js'
 import {
   buildReasoningSavePlan,
   collectReasoningSettings,
@@ -37,7 +33,7 @@ export class ReasoningSettingsController {
   private readonly listeners = new Set<() => void>()
   private generation = 0
 
-  constructor(private readonly api: Pick<IApiClient, 'settings'>) {}
+  constructor(private readonly remote: ReasoningRemoteNamespace) {}
 
   readonly getSnapshot = (): ReasoningSettingsState => this.state
 
@@ -51,15 +47,15 @@ export class ReasoningSettingsController {
     for (const listener of this.listeners) listener()
   }
 
-  /** Load all three participating settings namespaces in one describe call. */
+  /** Load all participating settings namespaces through the plugin-owned Remote. */
   async load(): Promise<boolean> {
     const generation = ++this.generation
     this.publish({ ...this.state, status: 'loading', error: null })
     try {
-      const response = await this.api.settings.describe({})
-      if (!response.result.ok) throw new Error(response.result.error.message)
+      const response = await this.remote.describe()
+      if (!response.ok) throw new Error(response.error.message)
       if (generation !== this.generation) return this.state.status === 'ready'
-      const { writable, namespaces } = response.result.value
+      const { writable, namespaces } = response.value
       this.publish({
         status: 'ready',
         error: null,
@@ -91,22 +87,13 @@ export class ReasoningSettingsController {
     if (plan.errors.length > 0) return false
     this.publish({ ...this.state, saving: true, error: null })
     try {
-      if (plan.pluginOps.length > 0) {
-        const response = await this.api.settings.mutate({
-          ns: PLUGIN_SETTINGS_NAMESPACE_ID,
-          ops: plan.pluginOps,
-          expectedRevision: snapshot.pluginRevision,
-        })
-        if (!response.result.ok) throw new Error(response.result.error.message)
-      }
-      if (plan.agentDefaultOps.length > 0) {
-        const response = await this.api.settings.mutate({
-          ns: AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID,
-          ops: plan.agentDefaultOps,
-          expectedRevision: snapshot.agentDefaultRevision,
-        })
-        if (!response.result.ok) throw new Error(response.result.error.message)
-      }
+      const response = await this.remote.mutate({
+        pluginOps: plan.pluginOps,
+        agentDefaultOps: plan.agentDefaultOps,
+        expectedPluginRevision: snapshot.pluginRevision,
+        expectedAgentDefaultRevision: snapshot.agentDefaultRevision,
+      })
+      if (!response.ok) throw new Error(response.error.message)
       const reloaded = await this.load()
       this.publish({ ...this.state, saving: false })
       return reloaded && this.state.status === 'ready'
@@ -120,4 +107,5 @@ export class ReasoningSettingsController {
       return false
     }
   }
+
 }

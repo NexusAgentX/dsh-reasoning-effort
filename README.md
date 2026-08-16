@@ -25,7 +25,7 @@ reasoningEfforts:
 - **不碰组合层**：只修改 settings 用户层（web 新建 provider 和 `settings.yaml` 手写的内容都在这一层）；
 - **幂等**：补完后不会二次写入；与 web 页面并发编辑通过 settings revision 冲突机制重试；
 - **实时**：监听 `settings/document-updated`，新增 provider 后无需重启，composer 立即生效。
-- **精确路由默认值**：同一个 model ID 位于不同 provider 时分别记忆；composer 中成功选择的 effort 会成为该路由的新默认值。
+- **精确路由默认值**：同一个 model ID 位于不同 provider 时分别记忆；默认值只通过插件设置页保存。Harness 原生 composer 的选择属于当前会话，不会被提升为插件默认值。
 
 目录默认包含 23 个常见模型：5 个 OpenAI、7 个 Claude、2 个 DeepSeek、2 个 Grok 和 7 个闭源 Qwen。每项都显式包含 `off: null`；其余档位来自 `models.dev` 的 `reasoning_options[type="effort"]`。
 
@@ -55,15 +55,18 @@ reasoningEfforts:
 - 七档可用等级及每档实际下发的 wire 值；`off` 表示明确不下发参数；
 - 该精确 `provider + model` 的默认等级，或继续采用 Provider 默认行为。
 
-能力覆盖存入插件自己的 `providers-reasoning` settings namespace，再由 Host 投影到 `llm-pi-ai` 模型条目。默认等级存入 Harness 的 `agent-default-model.reasoningDefaults`，设置页、composer、新会话和实际请求共用这一事实源。
+能力覆盖和精确路由默认等级都存入插件自己的 `providers-reasoning` settings namespace；能力由 Host 投影到 `llm-pi-ai` 模型条目。Client 通过插件自有的 Typert Remote 读写这一 namespace，不要求 Harness 把任意插件设置加入 Web ApiProxy allowlist。旧版 `reasoningDefaults` 和当前路由 `reasoningEffort` 只迁移一次，持久化标记会阻止用户清除默认值后再次导入旧值。
 
-默认值优先级：当前会话对同一路由的显式选择 > 用户保存的精确路由默认值 > Adapter 默认值 > Provider 默认行为。已从模型能力中移除的旧默认值不会下发，而是回退到 Adapter/Provider 默认值。
+插件不注册或替换 `conversation.input.model`，模型与思考等级继续使用 Harness 原生 composer。主 Agent 请求在公开的 `agent/request` waterfall 中补充缺失的 exact-route 默认值；原生 composer 已为会话显式选择的 effort 不会被覆盖，也不会写入插件默认值。顶层 `agent-default-model.reasoningEffort` 只用于旧配置迁移和当前路由兼容投影，不保存多路由 map。
+
+请求优先级：当前会话显式选择 > 用户保存的精确路由默认值（仅在请求尚无 effort 时注入）> Adapter/Provider 默认行为。原生模型切换继续采用 Harness 的 Adapter 语义；已从模型能力中移除的旧默认值不会下发。
 
 ## 构建
 
 ```bash
 pnpm install
 pnpm run build   # Host/Client JavaScript bundles + lib/**/*.d.ts
+pnpm run typecheck
 pnpm test
 ```
 
@@ -107,7 +110,9 @@ grep -A 8 'reasoningEfforts' ~/.dsh/settings.yaml
 ## 已知边界
 
 - 仅处理 `llm-pi-ai`；原生 `llm-deepseek` 自带档位，不受影响。
-- 需要同时包含 `agent-default-model.reasoningDefaults`、LLM 默认值解析和 Settings 配置客户端 exposure 契约的 Harness 版本；peer ranges 已明确排除已知不兼容的 `0.1.0-rc.6`。首个兼容 Harness 版本发布前本包仍不能发布，发布时须把临时的 `>0.1.0-rc.6` 收敛为该真实版本下限。
+- 完整 Web 路径兼容 Harness `0.1.0-rc.6`，无需修改 Harness。插件只依赖该版本已公开的 Typert Remote、`agent/request` 和 `settings.section` Client slot。
+- plugin-only 范围不接管原生 `/model` 命令；通过 `/model` 选中新模型时仍采用 Adapter 默认 effort。该选择会回显到 composer，但不会自动改写为插件 exact-route 默认。
+- Headless/TUI 只要走主 Agent Loop 就会经过 `agent/request`；直接调用 `ctx.llm.resolveCallConfig()` 或 `ctx.llm.stream()` 的非 Agent 路径不会应用本插件默认值。
 - 页面目前不提供删除 capability override／恢复自动目录的入口；若手工删除 `providers-reasoning` 中的 override，已投影到 `llm-pi-ai` 的旧 map 不会自动判定所有权并回退，请直接在页面保存目标能力。
 - 未收录、低置信度或不支持 `effort` 的模型不会被默认设置思考等级。
 - 对「整条内置 catalog 未收窄」的路由不逐模型改写（没有用户层模型条目可写；这类内置模型沿用 pi-ai catalog 自带的推理元数据）。
