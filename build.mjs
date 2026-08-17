@@ -57,6 +57,8 @@ const clientExternals = [
   'react',
   'react/jsx-runtime',
   '@deepseek-ai/dsh-client-runtime/client',
+  '@deepseek-ai/dsh-client-ui-conversation/client',
+  '@deepseek-ai/dsh-client-ui-model-selection/client',
   '@deepseek-ai/dsh-client-ui-primitives',
 ]
 runEsbuild([
@@ -66,6 +68,7 @@ runEsbuild([
   '--platform=browser',
   '--target=es2020',
   '--jsx=automatic',
+  '--loader:.png=dataurl',
   '--define:process.env.NODE_ENV="production"',
   ...clientExternals.map(specifier => `--external:${specifier}`),
   '--banner:js=window.__ModuleLoader__.load({ id: "dsh-reasoning-effort", factory: (require) => { var module = { exports: {} }; var exports = module.exports;',

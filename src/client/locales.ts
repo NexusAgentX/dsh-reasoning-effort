@@ -20,6 +20,16 @@ export const zh = {
   needsLevel: '至少启用一个非 off 等级。',
   invalidWire: '已启用等级必须填写请求值。',
   invalidDefault: '默认等级必须属于当前可用等级。',
+  composerMenu: '模型与思考强度',
+  composerSelectModel: '选择模型',
+  composerBack: '返回思考强度',
+  composerLoadingModels: '正在加载模型…',
+  composerNoModels: '没有可用模型',
+  composerNoEfforts: '当前模型未提供思考强度等级',
+  composerEffort: '思考强度',
+  composerRetry: '重试',
+  composerTrigger: '{model}，思考强度 {effort}',
+  composerSelectionFailed: '设置失败：{message}',
 } as const
 
 export const en: Record<keyof typeof zh, string> = {
@@ -42,6 +52,16 @@ export const en: Record<keyof typeof zh, string> = {
   needsLevel: 'Enable at least one level other than off.',
   invalidWire: 'Every enabled level needs a request value.',
   invalidDefault: 'The default must be one of the available levels.',
+  composerMenu: 'Model and reasoning effort',
+  composerSelectModel: 'Select model',
+  composerBack: 'Back to reasoning effort',
+  composerLoadingModels: 'Loading models…',
+  composerNoModels: 'No models available',
+  composerNoEfforts: 'This model provides no reasoning-effort levels',
+  composerEffort: 'Reasoning effort',
+  composerRetry: 'Retry',
+  composerTrigger: '{model}, reasoning effort {effort}',
+  composerSelectionFailed: 'Selection failed: {message}',
 }
 
 export type ReasoningSettingsLocaleKey = keyof typeof zh

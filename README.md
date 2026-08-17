@@ -1,6 +1,6 @@
 # dsh-reasoning-effort
 
-dsh Host + Client 插件：为本地能力目录中已确认支持 `reasoning_effort` 的第三方模型补齐推理等级，并提供独立设置页面管理每个精确 `provider + model` 路由的可用等级和默认等级。
+dsh Host + Client 插件：为本地能力目录中已确认支持 `reasoning_effort` 的第三方模型补齐推理等级，提供独立设置页面管理每个精确 `provider + model` 路由的可用等级和默认等级，并在 Composer 中加入鲸鱼娘推理强度滑块。
 
 ## 问题
 
@@ -57,7 +57,9 @@ reasoningEfforts:
 
 能力覆盖和精确路由默认等级都存入插件自己的 `providers-reasoning` settings namespace；能力由 Host 投影到 `llm-pi-ai` 模型条目。Client 通过插件自有的 Typert Remote 读写这一 namespace，不要求 Harness 把任意插件设置加入 Web ApiProxy allowlist。旧版 `reasoningDefaults` 和当前路由 `reasoningEffort` 只迁移一次，持久化标记会阻止用户清除默认值后再次导入旧值。
 
-插件不注册或替换 `conversation.input.model`，模型与思考等级继续使用 Harness 原生 composer。主 Agent 请求在公开的 `agent/request` waterfall 中补充缺失的 exact-route 默认值；原生 composer 已为会话显式选择的 effort 不会被覆盖，也不会写入插件默认值。顶层 `agent-default-model.reasoningEffort` 只用于旧配置迁移和当前路由兼容投影，不保存多路由 map。
+插件以更高优先级注册 `conversation.input.model`，只替换 Composer 中的模型入口，不接管输入框或其他 Composer 控件。弹层中的鲸鱼娘滑块读取当前模型公开的档位，每个档位对应一个等宽区间，滑块位置连续变化并通过区间映射到合法的 `reasoningEffort` 后提交；模型列表仍按 Provider 分组。Composer 选择只影响当前会话，不会写入插件默认值。
+
+滑块显示优先级与实际请求一致：当前会话显式值 > 设置页保存的精确路由默认值 > Adapter 默认值 > 中间档。主 Agent 请求仍在公开的 `agent/request` waterfall 中补充缺失的 exact-route 默认值；顶层 `agent-default-model.reasoningEffort` 只用于旧配置迁移和当前路由兼容投影，不保存多路由 map。
 
 请求优先级：当前会话显式选择 > 用户保存的精确路由默认值（仅在请求尚无 effort 时注入）> Adapter/Provider 默认行为。原生模型切换继续采用 Harness 的 Adapter 语义；已从模型能力中移除的旧默认值不会下发。
 
@@ -96,7 +98,7 @@ dsh --profile web --dump-config   # 确认 providers-reasoning 行已组合
 grep -A 8 'reasoningEfforts' ~/.dsh/settings.yaml
 ```
 
-浏览器中打开 composer 的模型菜单，第三方模型的「推理等级」行即出现；设置面板中同时出现独立的「思考等级」页面。
+浏览器中点击 Composer 的模型入口即可打开鲸鱼娘推理强度滑块和模型列表；设置面板中同时保留独立的「思考等级」页面。
 
 ## 模型目录
 

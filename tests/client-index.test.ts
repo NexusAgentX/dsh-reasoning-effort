@@ -16,6 +16,7 @@ import {
   inject,
   ReasoningSettingsSection,
 } from '../src/client/index'
+import { ComposerModelSelect } from '../src/client/composer'
 import { zh } from '../src/client/locales'
 
 const { renderToStaticMarkup } = createRequire(import.meta.url)('react-dom/server') as {
@@ -74,6 +75,20 @@ describe('reasoning settings client plugin', () => {
     expect(unmountRemote).toHaveBeenCalledOnce()
   })
 
+  it('disposes its dependent client scope and Remote contribution', async () => {
+    const disposeClient = vi.fn(() => Promise.resolve())
+    const disposeRemote = vi.fn(() => Promise.resolve())
+    const ctx = {
+      remote: { $mount: () => Promise.resolve(disposeRemote) },
+      plugin: () => Promise.resolve({ dispose: disposeClient }),
+    }
+
+    const cleanup = await apply(ctx as never)
+    await cleanup()
+    expect(disposeClient).toHaveBeenCalledOnce()
+    expect(disposeRemote).toHaveBeenCalledOnce()
+  })
+
   it('registers one localized independent settings section', async () => {
     const ctx = new Context()
     const entries: Array<{ options: Record<string, any>; component: unknown; inject: unknown }> = []
@@ -95,6 +110,8 @@ describe('reasoning settings client plugin', () => {
       entries: () => entries,
     }
     ctx.provide('slots', slots as never)
+    ctx.provide('modelDirectories', { directoryFor: vi.fn() } as never)
+    ctx.provide('sessions', { subagentAddress: vi.fn(() => undefined) } as never)
     ctx.provide('locale', {
       register: () => () => {},
       bind: () => (key: keyof typeof zh) => zh[key],
@@ -113,12 +130,14 @@ describe('reasoning settings client plugin', () => {
 
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    expect(entries).toHaveLength(1)
-    const settings = entries[0]!
+    expect(entries).toHaveLength(2)
+    const settings = entries.find(entry => entry.options.id === 'providers-reasoning')!
+    const composer = entries.find(entry => entry.options.name === 'conversation.input.model')!
     expect(settings.component).toBe(ReasoningSettingsSection)
     expect(settings.options).toMatchObject({ id: 'providers-reasoning', order: 15 })
     expect(settings.options.label()).toBe('思考等级')
-    expect(entries.some(entry => entry.options.name === 'conversation.input.model')).toBe(false)
+    expect(composer.component).toBe(ComposerModelSelect)
+    expect(composer.options).toMatchObject({ name: 'conversation.input.model', priority: -100 })
     const injected = settings.inject as unknown as () => { controller: unknown; t: (key: keyof typeof zh) => string }
     expect(injected().t('save')).toBe('保存更改')
     expect(injected().controller).toBeDefined()
@@ -127,5 +146,6 @@ describe('reasoning settings client plugin', () => {
     await fiber.dispose()
     expect(unmountRemote).toHaveBeenCalledOnce()
     await ctx.fiber.dispose()
+    expect(entries).toHaveLength(0)
   })
 })

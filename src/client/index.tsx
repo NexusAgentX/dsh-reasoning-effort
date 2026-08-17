@@ -7,6 +7,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import type { ReactNode } from 'react'
+import type { Fiber } from '@deepseek-ai/cordis'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import {
   Button,
@@ -17,6 +18,11 @@ import {
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type { SessionRuntime } from '@deepseek-ai/dsh-client-runtime/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { ModelDirectoryResolver } from '@deepseek-ai/dsh-client-ui-model-selection/client'
+import { ComposerModelSelect } from './composer.js'
+import { composerStyles } from './composer-styles.js'
 import {
   AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID,
   PI_AI_SETTINGS_NAMESPACE_ID,
@@ -53,11 +59,11 @@ const LOCALE_NAMESPACE = 'settings.providers-reasoning'
 const STYLE_ID = 'dsh-reasoning-effort/settings'
 
 /** Services required by the browser half. */
-export const inject = ['slots', 'locale', 'connection', 'remote']
+export const inject = ['slots', 'locale', 'connection', 'remote', 'modelDirectories', 'sessions']
 
 export interface ReasoningSettingsInjected {
   controller: ReasoningSettingsController
-  t: (key: ReasoningSettingsLocaleKey) => string
+  t: (key: ReasoningSettingsLocaleKey, params?: Record<string, unknown>) => string
 }
 
 export type ReasoningSettingsSectionProps = Partial<ReasoningSettingsInjected>
@@ -375,10 +381,11 @@ function Loaded({ controller, t }: ReasoningSettingsInjected): ReactNode {
 export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
   const remote = ctx.remote as ReasoningClientRemote
   const disposeRemote = await remote.$mount(TYPERT_REMOTE)
+  let clientFiber: Fiber | undefined
   try {
-    await ctx.plugin({
+    clientFiber = await ctx.plugin({
       name: 'dsh-reasoning-effort:client',
-      inject: ['remote.providersReasoning'],
+      inject: ['remote.providersReasoning', 'modelDirectories', 'sessions'],
       apply: (scope: ClientContext) => {
         installClient(scope, (scope.remote as ReasoningClientRemote).providersReasoning)
       },
@@ -387,13 +394,20 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
     await disposeRemote()
     throw error
   }
-  return async () => { await disposeRemote() }
+  return async () => {
+    try {
+      await clientFiber?.dispose()
+    } finally {
+      await disposeRemote()
+    }
+  }
 }
 
 function installClient(ctx: ClientContext, remoteNamespace: ReasoningClientRemote['providersReasoning']): void {
   ctx.effect(() => ctx.locale.register(LOCALE_NAMESPACE, { zh, en }), 'providers-reasoning: dictionaries')
   const controller = new ReasoningSettingsController(remoteNamespace)
   const t = ctx.locale.bind(LOCALE_NAMESPACE) as ReasoningSettingsInjected['t']
+  const sessions = ctx.get('sessions') as unknown as SessionRuntime
 
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
@@ -402,7 +416,7 @@ function installClient(ctx: ClientContext, remoteNamespace: ReasoningClientRemot
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-reasoning-effort'
     tag.dataset.pluginCss = STYLE_ID
-    tag.textContent = styles
+    tag.textContent = `${styles}\n${composerStyles}`
     document.head.appendChild(tag)
     return () => { tag.remove() }
   }, 'providers-reasoning: styles')
@@ -424,6 +438,20 @@ function installClient(ctx: ClientContext, remoteNamespace: ReasoningClientRemot
     ]
     return () => { for (const dispose of disposers) dispose() }
   }, 'providers-reasoning: invalidations')
+
+  ctx.slots.inject('conversation.input.model', () => {
+    const modelDirectories = ctx.modelDirectories as ModelDirectoryResolver
+    return ctx.slots.register({
+      name: 'conversation.input.model',
+      priority: -100,
+      inject: (sessionId) => ({
+        available: sessions.subagentAddress(sessionId) === undefined,
+        directory: modelDirectories.directoryFor(sessionId),
+        settings: controller,
+        t,
+      }),
+    }, ComposerModelSelect)
+  })
 
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
