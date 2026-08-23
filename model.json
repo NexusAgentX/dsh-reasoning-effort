@@ -388,6 +388,30 @@
       }
     },
     {
+      "model": "deepseek-v4-flash-vision-exp",
+      "aliases": [],
+      "contextWindow": 1048576,
+      "maxOutputTokens": 384000,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 0.22,
+        "output": 0.66,
+        "cacheRead": 0.007,
+        "cacheWrite": null
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://api-docs.deepseek.com/news/news260821/"
+      }
+    },
+    {
       "model": "grok-4.5",
       "aliases": [],
       "contextWindow": 500000,
@@ -589,7 +613,7 @@
       }
     },
     {
-      "model": "qwen3.8-max:thinking",
+      "model": "qwen3.8-max",
       "aliases": [],
       "contextWindow": 991000,
       "maxOutputTokens": 131072,
