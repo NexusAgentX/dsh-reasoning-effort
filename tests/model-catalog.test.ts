@@ -33,8 +33,13 @@ const expectedModels = [
   'claude-sonnet-4.6', 'claude-sonnet-5', 'claude-fable-5',
   'deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp',
   'grok-4.5', 'grok-4.6',
-  'qwen3.7-max', 'qwen3.7-max:thinking', 'qwen3.7-plus', 'qwen3.7-plus:thinking',
-  'qwen3.7-flash', 'qwen3.7-flash:thinking', 'qwen3.8-max',
+  'qwen3.7-max', 'qwen3.7-plus',
+  'qwen3.7-flash', 'qwen3.8-max',
+  'kimi-k3',
+  'glm-5.3',
+  'mimo-v2.5',
+  'mimo-v2.5-pro',
+  'hy3',
 ] as const
 
 function isNonNegativeNumberOrNull(value: unknown): value is NumberOrNull {
@@ -42,10 +47,10 @@ function isNonNegativeNumberOrNull(value: unknown): value is NumberOrNull {
 }
 
 describe('model catalog', () => {
-  it('contains exactly the curated 24 unique models', () => {
+  it('contains exactly the curated 26 unique models', () => {
     expect(catalog.version).toBe(1)
-    expect(entries).toHaveLength(24)
-    expect(new Set(entries.map(entry => entry.model)).size).toBe(24)
+    expect(entries).toHaveLength(26)
+    expect(new Set(entries.map(entry => entry.model)).size).toBe(26)
     expect(entries.map(entry => entry.model).sort()).toEqual([...expectedModels].sort())
   })
 
@@ -83,7 +88,6 @@ describe('model catalog', () => {
 
   it('resolves normalized user model identifiers without a provider', () => {
     expect(resolveModelEfforts('DeepSeek/DEEPSEEK_V4_FLASH')).toEqual({ off: null, high: 'high', max: 'max' })
-    expect(resolveModelEfforts('qwen3.7-max-thinking')).toEqual({ off: null, high: 'high' })
   })
 
   it('accepts a high-confidence typo with a unique best candidate', () => {

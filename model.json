@@ -491,59 +491,9 @@
       }
     },
     {
-      "model": "qwen3.7-max:thinking",
-      "aliases": [],
-      "contextWindow": 1000000,
-      "maxOutputTokens": 65536,
-      "pricing": {
-        "currency": "USD",
-        "unit": "per_million_tokens",
-        "input": 2.5,
-        "output": 7.5,
-        "cacheRead": null,
-        "cacheWrite": null,
-        "region": "Singapore International",
-        "conditions": "Official list price; a time-limited discount may apply."
-      },
-      "reasoningEfforts": {
-        "off": null,
-        "high": "high"
-      },
-      "sources": {
-        "capabilities": "https://models.dev/api.json",
-        "pricing": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
-      }
-    },
-    {
       "model": "qwen3.7-plus",
       "aliases": [],
       "contextWindow": 991808,
-      "maxOutputTokens": 65536,
-      "pricing": {
-        "currency": "USD",
-        "unit": "per_million_tokens",
-        "input": 0.4,
-        "output": 1.6,
-        "cacheRead": null,
-        "cacheWrite": null,
-        "region": "Singapore International",
-        "tiers": [
-          { "condition": "promptTokens > 256000", "input": 1.2, "output": 4.8 }
-        ]
-      },
-      "reasoningEfforts": {
-        "off": null,
-        "high": "high"
-      },
-      "sources": {
-        "capabilities": "https://models.dev/api.json",
-        "pricing": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
-      }
-    },
-    {
-      "model": "qwen3.7-plus:thinking",
-      "aliases": [],
-      "contextWindow": 983616,
       "maxOutputTokens": 65536,
       "pricing": {
         "currency": "USD",
@@ -590,29 +540,6 @@
       }
     },
     {
-      "model": "qwen3.7-flash:thinking",
-      "aliases": [],
-      "contextWindow": 983616,
-      "maxOutputTokens": 65536,
-      "pricing": {
-        "currency": "USD",
-        "unit": "per_million_tokens",
-        "input": null,
-        "output": null,
-        "cacheRead": null,
-        "cacheWrite": null,
-        "region": "Singapore International"
-      },
-      "reasoningEfforts": {
-        "off": null,
-        "high": "high"
-      },
-      "sources": {
-        "capabilities": "https://models.dev/api.json",
-        "pricing": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
-      }
-    },
-    {
       "model": "qwen3.8-max",
       "aliases": [],
       "contextWindow": 991000,
@@ -636,6 +563,121 @@
       "sources": {
         "capabilities": "https://models.dev/api.json",
         "pricing": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+      }
+    },
+    {
+      "model": "kimi-k3",
+      "aliases": [],
+      "contextWindow": 1048560,
+      "maxOutputTokens": 1048560,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 3,
+        "output": 15,
+        "cacheRead": 0.3,
+        "cacheWrite": null
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://platform.moonshot.cn/docs/pricing/chat"
+      }
+    },
+    {
+      "model": "glm-5.3",
+      "aliases": [],
+      "contextWindow": 1048576,
+      "maxOutputTokens": 131072,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 1.4,
+        "output": 4.4,
+        "cacheRead": 0.26,
+        "cacheWrite": null
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://docs.z.ai/guides/glm-5/pricing"
+      }
+    },
+    {
+      "model": "mimo-v2.5",
+      "aliases": [],
+      "contextWindow": 1048576,
+      "maxOutputTokens": 131072,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 0.14,
+        "output": 0.28,
+        "cacheRead": 0.0028,
+        "cacheWrite": 0
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "high": "high"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://docs.mimo.com/pricing"
+      }
+    },
+    {
+      "model": "mimo-v2.5-pro",
+      "aliases": [],
+      "contextWindow": 1048576,
+      "maxOutputTokens": 131072,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 0.435,
+        "output": 0.87,
+        "cacheRead": 0.0036,
+        "cacheWrite": 0
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "high": "high"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://docs.mimo.com/pricing"
+      }
+    },
+    {
+      "model": "hy3",
+      "aliases": [],
+      "contextWindow": 262144,
+      "maxOutputTokens": 262144,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 0.066,
+        "output": 0.26,
+        "cacheRead": 0.029,
+        "cacheWrite": null
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://cloud.tencent.com/document/product/1729"
       }
     }
   ]
