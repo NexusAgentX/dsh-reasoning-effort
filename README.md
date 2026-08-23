@@ -128,4 +128,4 @@ grep -A 8 'reasoningEfforts' ~/.dsh/settings.yaml
 
 ## License
 
-MIT。鲸鱼精灵的来源、版本和版权声明见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
+MIT。第三方素材（鲸鱼精灵图）的来源与版权声明已并入 [`LICENSE`](./LICENSE)。
