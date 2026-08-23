@@ -57,11 +57,16 @@ reasoningEfforts:
 
 能力覆盖和精确路由默认等级都存入插件自己的 `providers-reasoning` settings namespace；能力由 Host 投影到 `llm-pi-ai` 模型条目。Client 通过插件自有的 Typert Remote 读写这一 namespace，不要求 Harness 把任意插件设置加入 Web ApiProxy allowlist。旧版 `reasoningDefaults` 和当前路由 `reasoningEffort` 只迁移一次，持久化标记会阻止用户清除默认值后再次导入旧值。
 
-插件以更高优先级注册 `conversation.input.model`，只替换 Composer 中的模型入口，不接管输入框或其他 Composer 控件。弹层中的鲸鱼娘滑块读取当前模型公开的档位，每个档位对应一个等宽区间，滑块位置连续变化并通过区间映射到合法的 `reasoningEffort` 后提交；模型列表仍按 Provider 分组。Composer 选择只影响当前会话，不会写入插件默认值。
+## Composer 滑块
 
-滑块显示优先级与实际请求一致：当前会话显式值 > 设置页保存的精确路由默认值 > Adapter 默认值 > 中间档。主 Agent 请求仍在公开的 `agent/request` waterfall 中补充缺失的 exact-route 默认值；顶层 `agent-default-model.reasoningEffort` 只用于旧配置迁移和当前路由兼容投影，不保存多路由 map。
+插件以 `priority: -100` 注册 `conversation.input.model`，只替换 Composer 中的模型入口，不接管输入框、发送按钮或其他 Composer 控件。弹层保留按 Provider 分组的模型列表，并为当前模型显示鲸鱼娘推理强度滑块。
 
-请求优先级：当前会话显式选择 > 用户保存的精确路由默认值（仅在请求尚无 effort 时注入）> Adapter/Provider 默认行为。原生模型切换继续采用 Harness 的 Adapter 语义；已从模型能力中移除的旧默认值不会下发。
+- **连续区间**：每个合法档位占据一个等宽区间。滑块拖到哪里就停在哪里，释放后不会吸附到档位中心；提交时只把所在区间映射为一个合法的 `reasoningEffort`，不会向 Provider 发送任意连续数值。
+- **会话级选择**：模型切换只提交 `provider + model`，继续采用 Adapter 默认语义；只有操作滑块时才提交 `provider + model + reasoningEffort`。两者都只影响当前会话，不会写入设置页默认值。
+- **交互与回滚**：支持指针拖动、方向键及 `Home` / `End`。提交失败时恢复到上一次成功位置，不会留下乐观状态。
+- **平滑视觉**：鲸鱼精灵固定为单帧，位置、光晕和轨道平滑过渡；Canvas 辐射保持连续动画。启用 `prefers-reduced-motion` 后会关闭过渡并停止持续 Canvas 重绘，只保留静态画面。
+
+滑块显示及请求优先级为：当前会话显式值 > 设置页保存的精确路由默认值 > Adapter 默认值 > 中间档。主 Agent 请求仍在公开的 `agent/request` waterfall 中补充缺失的 exact-route 默认值；顶层 `agent-default-model.reasoningEffort` 只用于旧配置迁移和当前路由兼容投影，不保存多路由 map。已从模型能力中移除的旧默认值不会下发。
 
 ## 构建
 
@@ -98,7 +103,7 @@ dsh --profile web --dump-config   # 确认 providers-reasoning 行已组合
 grep -A 8 'reasoningEfforts' ~/.dsh/settings.yaml
 ```
 
-浏览器中点击 Composer 的模型入口即可打开鲸鱼娘推理强度滑块和模型列表；设置面板中同时保留独立的「思考等级」页面。
+浏览器中点击 Composer 的模型入口即可打开鲸鱼娘推理强度滑块和模型列表。将滑块停在同一档位区间的不同位置，释放后应保持原位且显示相同档位；设置面板中同时保留独立的「思考等级」页面。
 
 ## 模型目录
 
@@ -123,4 +128,4 @@ grep -A 8 'reasoningEfforts' ~/.dsh/settings.yaml
 
 ## License
 
-MIT
+MIT。鲸鱼精灵的来源、版本和版权声明见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)。
