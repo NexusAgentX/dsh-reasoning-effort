@@ -219,7 +219,6 @@ export const styles = `
   flex-wrap: wrap;
   gap: 8px;
   padding: 12px 0 2px;
-  background: var(--dsw-alias-bg-layer-1);
 }
 .dpr-sr-only {
   position: absolute;

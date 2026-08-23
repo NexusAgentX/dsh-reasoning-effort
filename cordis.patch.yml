@@ -1,0 +1,6 @@
+# The dsh-reasoning-effort bundle patch: inserts the providers-reasoning
+# plugin row over the profile root. Per-row config (efforts overrides) lands
+# in the user's profile cordis.patch.yml as an id-targeted patch (see README).
+- insert:
+    - id: providers-reasoning
+      name: dsh-reasoning-effort

@@ -364,7 +364,7 @@ function Loaded({ controller, t }: ReasoningSettingsInjected): ReactNode {
         <div className="dpr-actions">
           <Button variant="outline" disabled={!editing || state.saving} onClick={reset}>{t('reset')}</Button>
           <Button
-            variant="primary"
+            variant="outline"
             icon={<IconCheckOutline16 size={14} />}
             disabled={!snapshot.writable || state.saving || !hasChanges || plan.errors.length > 0}
             onClick={save}

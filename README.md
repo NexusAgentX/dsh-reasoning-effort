@@ -29,11 +29,10 @@ reasoningEfforts:
 
 目录默认包含 23 个常见模型：5 个 OpenAI、7 个 Claude、2 个 DeepSeek、2 个 Grok 和 7 个闭源 Qwen。每项都显式包含 `off: null`；其余档位来自 `models.dev` 的 `reasoning_options[type="effort"]`。
 
-配置入口（可选，仅覆盖已命中模型的目录档位）：
+配置入口（可选，仅覆盖已命中模型的目录档位）。插件行由包内 `cordis.patch.yml` 自动插入；在 profile 的 `cordis.patch.yml` 里按 id 追加 config 即可：
 
 ```yaml
 - id: providers-reasoning
-  name: dsh-reasoning-effort
   config:
     efforts:
       off:
@@ -77,24 +76,38 @@ pnpm run typecheck
 pnpm test
 ```
 
-## 安装（本地源码，无需重启正在运行的 dsh web）
+## 安装（本地源码）
 
 ```bash
 cd /absolute/path/to/dsh-reasoning-effort
 pnpm install && pnpm run build
 
-# 1. 先把包链接进 web profile
+# 链接进 web profile。包内 cordis.patch.yml（package.json 的 dsh.bundle 声明）
+# 会自动把 providers-reasoning 插件行挂进 profile 层栈，无需手写 patch。
 dsh plugin --profile web add link:$PWD
-
-# 2. 在 $DSH_HOME/profiles/web/cordis.patch.yml（默认 ~/.dsh/profiles/web/cordis.patch.yml）加入：
-#
-#   - insert:
-#       - id: providers-reasoning
-#         name: dsh-reasoning-effort
-#
-# dsh web 自带对该文件的 HMR 监听：保存 patch 后运行中的进程会热加载插件，
-# 并立即补全 settings.yaml 里已有第三方模型的 reasoningEfforts。
 ```
+
+bundle 层在 `dsh web` 下次启动时组合生效；之后对
+`$DSH_HOME/profiles/web/cordis.patch.yml`（默认 `~/.dsh/profiles/web/cordis.patch.yml`）
+的修改仍由运行中的进程热加载。
+
+可选：在该文件里用 id 定向 patch 覆盖目录档位（不要重复手写 insert 行，插件行已由 bundle 层插入）：
+
+```yaml
+- id: providers-reasoning
+  config:
+    efforts:
+      off:
+      minimal: minimal
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+```
+
+> 从旧版两步安装升级：请删除之前手写在 profile `cordis.patch.yml` 里的
+> `- insert: - id: providers-reasoning` 块，否则 bundle 层与用户层会各插一行同 id 插件。
 
 验证：
 
