@@ -40,6 +40,35 @@ describe('computeEnrichmentOps', () => {
     }])
   })
 
+  it('backfills missing input and preserves an explicit input value', () => {
+    const resolveInput = (modelId: string) => modelId === 'vision'
+      ? ['text', 'image'] as const
+      : modelId === 'text-only' ? ['text'] as const : undefined
+    const ops = computeEnrichmentOps({
+      providers: {
+        acme: {
+          models: [
+            { id: 'vision' },
+            { id: 'text-only', input: ['text'] },
+            { id: 'kept', input: ['custom'] },
+            { id: 'unknown' },
+          ],
+        },
+      },
+    }, () => undefined, undefined, resolveInput)
+
+    expect(ops).toEqual([{
+      op: 'set',
+      path: ['providers', 'acme', 'models'],
+      value: [
+        { id: 'vision', input: ['text', 'image'] },
+        { id: 'text-only', input: ['text'] },
+        { id: 'kept', input: ['custom'] },
+        { id: 'unknown' },
+      ],
+    }])
+  })
+
   it('preserves an existing map, an explicit false, and null', () => {
     const user = {
       providers: {
@@ -105,6 +134,29 @@ describe('computeEnrichmentOps', () => {
       value: {
         known: { contextWindow: 1000, reasoningEfforts: EFFORTS },
         'gpt-y': { reasoningEfforts: false },
+      },
+    }])
+  })
+
+  it('backfills input in modelOverrides without replacing an explicit null', () => {
+    const resolveInput = (modelId: string) => modelId === 'vision' ? ['text', 'image'] as const : undefined
+    const ops = computeEnrichmentOps({
+      providers: {
+        acme: {
+          modelOverrides: {
+            vision: { contextWindow: 1000 },
+            kept: { input: null },
+          },
+        },
+      },
+    }, () => undefined, undefined, resolveInput)
+
+    expect(ops).toEqual([{
+      op: 'set',
+      path: ['providers', 'acme', 'modelOverrides'],
+      value: {
+        vision: { contextWindow: 1000, input: ['text', 'image'] },
+        kept: { input: null },
       },
     }])
   })

@@ -10,7 +10,7 @@
 1. 管理模型实际提供的 `reasoningEfforts` 及 wire 映射；
 2. 按精确 `provider + model` 记忆默认 effort，并在会话没有显式 effort 时应用到真实请求。
 
-本地 `model.json` 只提供保守的基础能力目录。未命中目录的用户模型仍可在页面中手工配置；未命中、低置信度或歧义模型不会被自动补齐。
+本地 `models.json` 只提供保守的基础能力目录。未命中目录的用户模型仍可在页面中手工配置；未命中、低置信度或歧义模型不会被自动补齐。
 
 ## 2. 状态所有权
 
@@ -20,7 +20,7 @@
 - `providers-reasoning.defaults.<provider>.<model>`：插件拥有的精确路由默认 effort。
 - `providers-reasoning.legacyDefaultsMigrated`：旧默认值的一次性迁移标记；标记后不再读取旧 map 作为默认事实源。
 
-`llm-pi-ai.providers.*.models[*].reasoningEfforts` 是 Adapter 消费的投影，不是设置页面的事实源。`model.json` 是包内只读基础目录，永不写回。
+`llm-pi-ai.providers.*.models[*].reasoningEfforts` 是 Adapter 消费的投影，不是设置页面的事实源。`models.json` 是包内只读基础目录，永不写回。
 
 ## 3. Plugin-only 扩展点
 
@@ -73,14 +73,14 @@ Client bundle 通过 `settings.section` 注册独立页面，数据源为插件 
 
 - `lib/index.js`：Node ESM Host bundle，所有 `@deepseek-ai/*` 保持 external；
 - `lib/client.js`：浏览器 CJS closure factory，通过 `window.__ModuleLoader__.load()` 注册；
-- `model.json`：随包发布的只读目录。
+- `models.json`：随包发布的只读目录。
 
 验证覆盖：目录匹配、自动补齐不覆盖、exact-route 强制覆盖与幂等、namespace 语义校验、只显示用户 models、跨 provider 隔离、默认值 save ops、一次性迁移及清除后不回灌、`off`/失效值、Remote strict descriptor、Client 不接管 composer、Host `agent/request` 注入、类型检查、双端构建和 dry-run 打包。
 
 ## 7. 非目标
 
 - 不提供添加/删除模型入口；
-- 不编辑 `model.json`；
+- 不编辑 `models.json`；
 - 不修改 `llm-deepseek`；
 - 不把 request 阶段的隐藏补值冒充为 UI 默认选择；
 - 不接管原生 `/model` 命令；该入口仍采用 Adapter 默认 effort；

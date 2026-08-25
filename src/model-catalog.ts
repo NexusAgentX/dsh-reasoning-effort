@@ -6,12 +6,15 @@
  * @module dsh-reasoning-effort/model-catalog
  */
 
-import catalog from '../model.json'
+import catalog from '../models.json'
 import type { ReasoningEfforts } from './config.js'
+
+export type ModelInput = readonly ('text' | 'image')[]
 
 interface CatalogModel {
   readonly model: string
   readonly aliases: readonly string[]
+  readonly input: ModelInput
   readonly reasoningEfforts: ReasoningEfforts
 }
 
@@ -52,23 +55,14 @@ function similarity(left: string, right: string): number {
   return 1 - previous[right.length] / Math.max(left.length, right.length)
 }
 
-function copyEfforts(efforts: ReasoningEfforts): ReasoningEfforts {
-  return { ...efforts }
-}
-
-/**
- * Resolve a user-entered model identifier to its curated effort map. Exact
- * normalized model names and aliases win; fuzzy matches need a high score and
- * a clear lead over every other candidate.
- */
-export function resolveModelEfforts(modelId: unknown): ReasoningEfforts | undefined {
+function resolveCatalogModel(modelId: unknown): CatalogModel | undefined {
   if (typeof modelId !== 'string') return undefined
   const normalized = normalizeModelName(modelId)
   if (normalized.length === 0) return undefined
 
   for (const model of modelCatalog.models) {
     if ([model.model, ...model.aliases].some(name => normalizeModelName(name) === normalized)) {
-      return copyEfforts(model.reasoningEfforts)
+      return model
     }
   }
 
@@ -81,5 +75,29 @@ export function resolveModelEfforts(modelId: unknown): ReasoningEfforts | undefi
   const [best, runnerUp] = scored
   if (best === undefined || best.score < MATCH_THRESHOLD) return undefined
   if (runnerUp !== undefined && best.score - runnerUp.score < MINIMUM_MARGIN) return undefined
-  return copyEfforts(best.model.reasoningEfforts)
+  return best.model
+}
+
+function copyEfforts(efforts: ReasoningEfforts): ReasoningEfforts {
+  return { ...efforts }
+}
+
+function copyInput(input: ModelInput): ModelInput {
+  return [...input]
+}
+
+/**
+ * Resolve a user-entered model identifier to its curated effort map. Exact
+ * normalized model names and aliases win; fuzzy matches need a high score and
+ * a clear lead over every other candidate.
+ */
+export function resolveModelEfforts(modelId: unknown): ReasoningEfforts | undefined {
+  const model = resolveCatalogModel(modelId)
+  return model === undefined ? undefined : copyEfforts(model.reasoningEfforts)
+}
+
+/** Resolve a user-entered model identifier to its curated input modalities. */
+export function resolveModelInput(modelId: unknown): ModelInput | undefined {
+  const model = resolveCatalogModel(modelId)
+  return model === undefined ? undefined : copyInput(model.input)
 }

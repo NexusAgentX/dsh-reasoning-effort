@@ -1,14 +1,13 @@
 /**
- * Pure derivation of the settings path-ops that backfill missing reasoning
- * efforts. The plugin owns no UI and no model state; this module is the whole
- * decision: which user-layer entries need a capability declaration.
+ * Pure derivation of the settings path-ops that backfill missing model
+ * capabilities. The plugin owns no UI and no model state; this module is the
+ * whole decision: which user-layer entries need a capability declaration.
  *
  * Only the user layer of `llm-pi-ai` is scanned. A model entry the user added
  * through the web "custom provider" card (or wrote into settings.yaml) lives
  * there; the composition base is owned by its own bundle and is never
- * rewritten. Entries that already carry `reasoningEfforts` — a partial map,
- * the full map, or an explicit `false` ("non-reasoning model") — are always
- * left alone. The plugin only fills absence.
+ * rewritten. Entries that already carry `reasoningEfforts` or `input` are
+ * always left alone. The plugin only fills absence.
  *
  * Each provider gets ONE `set` op for its whole `models` array (and one for
  * its `modelOverrides` dict) rather than a per-index op: the settings seam's
@@ -21,9 +20,11 @@
 
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import type { ReasoningEfforts } from './config.js'
+import type { ModelInput } from './model-catalog.js'
 import type { ReasoningCapability } from './plugin-settings.js'
 
 export type ModelEffortResolver = (modelId: string) => ReasoningEfforts | undefined
+export type ModelInputResolver = (modelId: string) => ModelInput | undefined
 export type ModelCapabilityOverrideResolver = (
   providerId: string,
   modelId: string,
@@ -36,6 +37,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 /** A detached efforts object, so each stored op owns its own JSON value. */
 function copyEfforts(efforts: ReasoningEfforts): ReasoningEfforts {
   return { ...efforts }
+}
+
+function copyInput(input: ModelInput): ModelInput {
+  return [...input]
 }
 
 function copyCapability(capability: ReasoningCapability): ReasoningCapability {
@@ -69,29 +74,37 @@ function enrichedEntry(
   entry: unknown,
   resolveEfforts: ModelEffortResolver,
   resolveOverride: ModelCapabilityOverrideResolver,
+  resolveInput: ModelInputResolver,
   providerId: string,
   fallbackModelId?: string,
 ): unknown {
   if (!isPlainObject(entry)) return entry
   const modelId = modelIdFor(entry, fallbackModelId)
   if (modelId === undefined) return entry
+  const changes: Record<string, unknown> = {}
   const override = resolveOverride(providerId, modelId)
   if (override !== undefined) {
-    if (capabilityEquals(entry['reasoningEfforts'], override)) return entry
-    return { ...entry, reasoningEfforts: copyCapability(override) }
+    if (!capabilityEquals(entry['reasoningEfforts'], override)) {
+      changes.reasoningEfforts = copyCapability(override)
+    }
+  } else if (entry['reasoningEfforts'] === undefined) {
+    const efforts = resolveEfforts(modelId)
+    if (efforts !== undefined) changes.reasoningEfforts = copyEfforts(efforts)
   }
-  if (entry['reasoningEfforts'] !== undefined) return entry
-  const efforts = resolveEfforts(modelId)
-  if (efforts === undefined) return entry
-  return { ...entry, reasoningEfforts: copyEfforts(efforts) }
+  if (entry['input'] === undefined) {
+    const input = resolveInput(modelId)
+    if (input !== undefined) changes.input = copyInput(input)
+  }
+  return Object.keys(changes).length === 0 ? entry : { ...entry, ...changes }
 }
 
 /**
  * Compute the `set` ops that give only catalog-recognized model entries missing
- * `reasoningEfforts` their supported map.
+ * `reasoningEfforts` or `input` their supported capability declarations.
  * @param user - the raw `llm-pi-ai` user section (detached descriptor copy).
  * @param resolveEfforts - returns a supported map for a recognized model.
  * @param resolveOverride - returns an explicit exact-route user override.
+ * @param resolveInput - returns supported input modalities for a recognized model.
  * @returns path ops addressing `providers.<route>.models` and
  *   `providers.<route>.modelOverrides`, in document order.
  */
@@ -99,6 +112,7 @@ export function computeEnrichmentOps(
   user: unknown,
   resolveEfforts: ModelEffortResolver,
   resolveOverride: ModelCapabilityOverrideResolver = () => undefined,
+  resolveInput: ModelInputResolver = () => undefined,
 ): readonly SettingsPathOp[] {
   if (!isPlainObject(user)) return []
   const providers = user['providers']
@@ -111,7 +125,7 @@ export function computeEnrichmentOps(
 
     const models = profile['models']
     if (Array.isArray(models)) {
-      const next = models.map(entry => enrichedEntry(entry, resolveEfforts, resolveOverride, route))
+      const next = models.map(entry => enrichedEntry(entry, resolveEfforts, resolveOverride, resolveInput, route))
       if (next.some((entry, index) => entry !== models[index])) {
         ops.push({
           op: 'set',
@@ -126,7 +140,7 @@ export function computeEnrichmentOps(
       const next: Record<string, unknown> = {}
       let changed = false
       for (const [model, entry] of Object.entries(overrides)) {
-        const enriched = enrichedEntry(entry, resolveEfforts, resolveOverride, route, model)
+        const enriched = enrichedEntry(entry, resolveEfforts, resolveOverride, resolveInput, route, model)
         Object.defineProperty(next, model, {
           value: enriched, enumerable: true, configurable: true, writable: true,
         })

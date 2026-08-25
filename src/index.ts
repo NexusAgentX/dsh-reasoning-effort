@@ -7,11 +7,12 @@
  * web "custom provider" card deliberately does not write it, so hand-declared
  * third-party models show no reasoning selector. This plugin closes the gap
  * the platform seams allow: it watches the `llm-pi-ai` settings user layer
- * and writes a catalog-derived effort map only onto supported model entries
- * that lack the field.
+ * and writes catalog-derived `reasoningEfforts` and `input` declarations only
+ * onto supported model entries that lack the corresponding fields.
  *
  * Contract:
  * - missing `reasoningEfforts` on a catalog-matched model → backfill its map;
+ * - missing `input` on a catalog-matched model → backfill its modalities;
  * - any existing value (map or `false`) → untouched;
  * - composition base → untouched;
  * - writes go through `ctx.settings.mutate` with `expectedRevision`, so a
@@ -39,7 +40,7 @@ import {
   PLUGIN_SETTINGS_NAMESPACE_ID,
 } from './constants.js'
 import { computeEnrichmentOps } from './enrich.js'
-import { resolveModelEfforts } from './model-catalog.js'
+import { resolveModelEfforts, resolveModelInput } from './model-catalog.js'
 import {
   emptyReasoningPluginSettings,
   ReasoningPluginSettingsSchema,
@@ -185,6 +186,8 @@ export function apply(ctx: Context, config: unknown): void {
         return catalogEfforts === undefined ? undefined : resolved.efforts ?? catalogEfforts
       }, (providerId, modelId) => {
         return routeCapability(settingsSource(), providerId, modelId)
+      }, modelId => {
+        return resolveModelInput(modelId)
       })
       if (ops.length === 0) return
 
@@ -192,7 +195,7 @@ export function apply(ctx: Context, config: unknown): void {
         if (disposed) return
         await settings.mutate(PI_AI_NS, ops, descriptor.revision)
         if (disposed) return
-        logger.info('backfilled reasoningEfforts on %s model entries', ops.length)
+        logger.info('backfilled model capabilities on %s model entries', ops.length)
       } catch (error) {
         if (error instanceof SettingsConflictError) {
           // A web edit landed between describe and mutate. One retry pass is
@@ -202,7 +205,7 @@ export function apply(ctx: Context, config: unknown): void {
           schedule()
           return
         }
-        logger.warn('failed to backfill reasoningEfforts')
+        logger.warn('failed to backfill model capabilities')
         logger.warn(error)
       }
     }
