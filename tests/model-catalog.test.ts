@@ -1,13 +1,14 @@
-import catalog from '../model.json'
+import catalog from '../models.json'
 import { describe, expect, it } from 'vitest'
 import { REASONING_LEVELS } from '../src/config'
-import { resolveModelEfforts } from '../src/model-catalog'
+import { resolveModelEfforts, resolveModelInput } from '../src/model-catalog'
 
 type NumberOrNull = number | null
 
 interface CatalogEntry {
   readonly model: string
   readonly aliases: readonly string[]
+  readonly input: readonly ('text' | 'image')[]
   readonly contextWindow: number | null
   readonly maxOutputTokens: number | null
   readonly pricing: {
@@ -27,6 +28,14 @@ interface CatalogEntry {
 
 const entries = catalog.models as readonly CatalogEntry[]
 const allowedLevels = new Set<string>(REASONING_LEVELS)
+const textOnlyModels = new Set([
+  'deepseek-v4-flash',
+  'deepseek-v4-pro',
+  'qwen3.7-max',
+  'glm-5.3',
+  'mimo-v2.5-pro',
+  'hy3',
+])
 const expectedModels = [
   'gpt-5.4', 'gpt-5.5', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna',
   'claude-opus-4.6', 'claude-opus-4.7', 'claude-opus-4.8', 'claude-opus-5',
@@ -58,6 +67,7 @@ describe('model catalog', () => {
     for (const entry of entries) {
       expect(entry.aliases).toEqual(expect.any(Array))
       expect(entry.aliases.every(alias => typeof alias === 'string' && alias.length > 0)).toBe(true)
+      expect(entry.input).toEqual(textOnlyModels.has(entry.model) ? ['text'] : ['text', 'image'])
       expect(entry.contextWindow === null || (Number.isInteger(entry.contextWindow) && entry.contextWindow > 0)).toBe(true)
       expect(entry.maxOutputTokens === null || (Number.isInteger(entry.maxOutputTokens) && entry.maxOutputTokens > 0)).toBe(true)
       expect(entry.pricing.currency).toBe('USD')
@@ -88,6 +98,12 @@ describe('model catalog', () => {
 
   it('resolves normalized user model identifiers without a provider', () => {
     expect(resolveModelEfforts('DeepSeek/DEEPSEEK_V4_FLASH')).toEqual({ off: null, high: 'high', max: 'max' })
+  })
+
+  it('resolves curated input modalities without a provider', () => {
+    expect(resolveModelInput('DeepSeek/DEEPSEEK_V4_FLASH')).toEqual(['text'])
+    expect(resolveModelInput('deepseek-v4-flash-vision-exp')).toEqual(['text', 'image'])
+    expect(resolveModelInput('mimo-v2.5-pro')).toEqual(['text'])
   })
 
   it('accepts a high-confidence typo with a unique best candidate', () => {

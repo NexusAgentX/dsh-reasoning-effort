@@ -4,7 +4,7 @@ dsh Host + Client 插件：为本地能力目录中已确认支持 `reasoning_ef
 
 ## 问题
 
-`@deepseek-ai/dsh-llm-pi-ai` 只在模型条目声明了 `reasoningEfforts` 时向 composer 上报推理元数据；web 的「添加自定义提供方」卡片刻意不写这个字段，因此第三方模型只能选模型、选不了推理等级。本插件通过 `model.json` 的本地能力目录，仅对已确认支持 `effort` 的模型补齐该字段：
+`@deepseek-ai/dsh-llm-pi-ai` 只在模型条目声明了 `reasoningEfforts` 时向 composer 上报推理元数据；web 的「添加自定义提供方」卡片刻意不写这个字段，因此第三方模型只能选模型、选不了推理等级。本插件通过 `models.json` 的本地能力目录，为已确认的模型补齐缺失的 `reasoningEfforts` 和 `input` 字段：
 
 ```yaml
 reasoningEfforts:
@@ -20,14 +20,15 @@ reasoningEfforts:
 ## 行为规则
 
 - **按能力补缺**：模型名命中本地目录且 `reasoningEfforts` 缺失 → 写入该模型支持的档位；
+- **视觉能力补缺**：模型名命中本地目录且 `input` 缺失 → 写入 `['text']` 或 `['text', 'image']`；
 - **保守匹配**：模型名先做规范化精确匹配，再做高置信度相似匹配；歧义、低置信度和未收录模型都不写入；
-- **不覆盖**：已有映射、或 `reasoningEfforts: false`（显式声明不推理）→ 原样保留；
+- **不覆盖**：已有 `reasoningEfforts`、`input`，或 `reasoningEfforts: false`（显式声明不推理）→ 原样保留；
 - **不碰组合层**：只修改 settings 用户层（web 新建 provider 和 `settings.yaml` 手写的内容都在这一层）；
 - **幂等**：补完后不会二次写入；与 web 页面并发编辑通过 settings revision 冲突机制重试；
 - **实时**：监听 `settings/document-updated`，新增 provider 后无需重启，composer 立即生效。
 - **精确路由默认值**：同一个 model ID 位于不同 provider 时分别记忆；默认值只通过插件设置页保存。Harness 原生 composer 的选择属于当前会话，不会被提升为插件默认值。
 
-目录默认包含 23 个常见模型：5 个 OpenAI、7 个 Claude、2 个 DeepSeek、2 个 Grok 和 7 个闭源 Qwen。每项都显式包含 `off: null`；其余档位来自 `models.dev` 的 `reasoning_options[type="effort"]`。
+目录目前包含 26 个常见模型。每项都显式包含 `input` 和 `off: null`；推理档位来自 `models.dev` 的 `reasoning_options[type="effort"]`，图片能力按模型官方资料人工确认。
 
 配置入口（可选，仅覆盖已命中模型的目录档位）。插件行由包内 `cordis.patch.yml` 自动插入；在 profile 的 `cordis.patch.yml` 里按 id 追加 config 即可：
 
@@ -46,7 +47,7 @@ reasoningEfforts:
 
 ## 设置页面
 
-插件的 Client bundle 通过 Harness 的 `settings.section` 注册「思考等级」页面。页面只枚举 `llm-pi-ai` raw user 层的 `providers.*.models`，也就是用户在 Harness「模型」页面添加的模型；内置 catalog、`modelOverrides` 和 `model.json` 不会成为页面条目。
+插件的 Client bundle 通过 Harness 的 `settings.section` 注册「思考等级」页面。页面只枚举 `llm-pi-ai` raw user 层的 `providers.*.models`，也就是用户在 Harness「模型」页面添加的模型；内置 catalog、`modelOverrides` 和 `models.json` 不会成为页面条目。
 
 每个模型可以配置：
 
@@ -120,9 +121,10 @@ grep -A 8 'reasoningEfforts' ~/.dsh/settings.yaml
 
 ## 模型目录
 
-根目录的 [`model.json`](./model.json) 是随包发布的人工维护目录。每项包含上下文窗口、最大输出、官方 API 参考价格、可用思考等级及其来源。
+根目录的 [`models.json`](./models.json) 是随包发布的人工维护目录。每项包含输入模态、上下文窗口、最大输出、官方 API 参考价格、可用思考等级及其来源。
 
 - 能力匹配只使用 `model` 和 `aliases`，不依赖用户的 provider 名称；
+- `input` 是模型级输入能力声明：纯文本模型为 `['text']`，视觉模型为 `['text', 'image']`；
 - 价格只引用模型厂商官方资料，官方未公开的项目为 `null`，不会使用转售商价格；
 - `models.dev` 仅用于筛选能力与档位；价格来源不参与匹配；
 - `latest` 这类动态名称只能作为 alias，不会增加目录模型数。
@@ -134,7 +136,7 @@ grep -A 8 'reasoningEfforts' ~/.dsh/settings.yaml
 - plugin-only 范围不接管原生 `/model` 命令；通过 `/model` 选中新模型时仍采用 Adapter 默认 effort。该选择会回显到 composer，但不会自动改写为插件 exact-route 默认。
 - Headless/TUI 只要走主 Agent Loop 就会经过 `agent/request`；直接调用 `ctx.llm.resolveCallConfig()` 或 `ctx.llm.stream()` 的非 Agent 路径不会应用本插件默认值。
 - 页面目前不提供删除 capability override／恢复自动目录的入口；若手工删除 `providers-reasoning` 中的 override，已投影到 `llm-pi-ai` 的旧 map 不会自动判定所有权并回退，请直接在页面保存目标能力。
-- 未收录、低置信度或不支持 `effort` 的模型不会被默认设置思考等级。
+- 未收录、低置信度或不支持 `effort` 的模型不会被默认设置思考等级；未收录模型也不会自动补齐 `input`。
 - 对「整条内置 catalog 未收窄」的路由不逐模型改写（没有用户层模型条目可写；这类内置模型沿用 pi-ai catalog 自带的推理元数据）。
 - 非法值（如 `reasoningEfforts: null` / `{}`）保留原样，交由 `llm-pi-ai` 自身报错，插件不猜测修复。
 - 默认拼写=档位名，适用于 OpenAI 兼容方言；使用 DeepSeek `thinking` 等方言的私有网关请按上游文档配置 `compat.thinkingFormat`。

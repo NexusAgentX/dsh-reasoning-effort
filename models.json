@@ -4,6 +4,7 @@
     {
       "model": "gpt-5.4",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1050000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -29,6 +30,7 @@
     {
       "model": "gpt-5.5",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1050000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -54,6 +56,7 @@
     {
       "model": "gpt-5.6-sol",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1050000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -83,6 +86,7 @@
     {
       "model": "gpt-5.6-terra",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1050000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -112,6 +116,7 @@
     {
       "model": "gpt-5.6-luna",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1050000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -141,6 +146,7 @@
     {
       "model": "claude-opus-4.6",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1000000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -170,6 +176,7 @@
     {
       "model": "claude-opus-4.7",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1000000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -199,6 +206,7 @@
     {
       "model": "claude-opus-4.8",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1000000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -228,6 +236,7 @@
     {
       "model": "claude-opus-5",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1000000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -257,6 +266,7 @@
     {
       "model": "claude-sonnet-4.6",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1000000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -286,6 +296,7 @@
     {
       "model": "claude-sonnet-5",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1000000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -315,6 +326,7 @@
     {
       "model": "claude-fable-5",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1000000,
       "maxOutputTokens": 128000,
       "pricing": {
@@ -344,6 +356,7 @@
     {
       "model": "deepseek-v4-flash",
       "aliases": [],
+      "input": ["text"],
       "contextWindow": 1048576,
       "maxOutputTokens": 393216,
       "pricing": {
@@ -367,6 +380,7 @@
     {
       "model": "deepseek-v4-pro",
       "aliases": [],
+      "input": ["text"],
       "contextWindow": 1048576,
       "maxOutputTokens": 393216,
       "pricing": {
@@ -390,6 +404,7 @@
     {
       "model": "deepseek-v4-flash-vision-exp",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1048576,
       "maxOutputTokens": 384000,
       "pricing": {
@@ -414,6 +429,7 @@
     {
       "model": "grok-4.5",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 500000,
       "maxOutputTokens": 500000,
       "pricing": {
@@ -441,6 +457,7 @@
     {
       "model": "grok-4.6",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 500000,
       "maxOutputTokens": 500000,
       "pricing": {
@@ -469,6 +486,7 @@
     {
       "model": "qwen3.7-max",
       "aliases": [],
+      "input": ["text"],
       "contextWindow": 1000000,
       "maxOutputTokens": 65536,
       "pricing": {
@@ -493,6 +511,7 @@
     {
       "model": "qwen3.7-plus",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 991808,
       "maxOutputTokens": 65536,
       "pricing": {
@@ -519,6 +538,7 @@
     {
       "model": "qwen3.7-flash",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 991808,
       "maxOutputTokens": 65536,
       "pricing": {
@@ -542,6 +562,7 @@
     {
       "model": "qwen3.8-max",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 991000,
       "maxOutputTokens": 131072,
       "pricing": {
@@ -568,6 +589,7 @@
     {
       "model": "kimi-k3",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1048560,
       "maxOutputTokens": 1048560,
       "pricing": {
@@ -592,6 +614,7 @@
     {
       "model": "glm-5.3",
       "aliases": [],
+      "input": ["text"],
       "contextWindow": 1048576,
       "maxOutputTokens": 131072,
       "pricing": {
@@ -616,6 +639,7 @@
     {
       "model": "mimo-v2.5",
       "aliases": [],
+      "input": ["text", "image"],
       "contextWindow": 1048576,
       "maxOutputTokens": 131072,
       "pricing": {
@@ -638,6 +662,7 @@
     {
       "model": "mimo-v2.5-pro",
       "aliases": [],
+      "input": ["text"],
       "contextWindow": 1048576,
       "maxOutputTokens": 131072,
       "pricing": {
@@ -660,6 +685,7 @@
     {
       "model": "hy3",
       "aliases": [],
+      "input": ["text"],
       "contextWindow": 262144,
       "maxOutputTokens": 262144,
       "pricing": {
