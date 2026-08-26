@@ -110,6 +110,58 @@ describe('apply', () => {
     })
   })
 
+  it('backfills capacities so a third-party DeepSeek route keeps its 1M window', async () => {
+    const ctx = await boot({
+      [NS]: {
+        providers: {
+          'lite-cpa': {
+            models: [
+              // Already-reasoning entries (as the web card writes them) must
+              // still receive the missing capacity declaration.
+              { id: 'deepseek-v4-flash', reasoningEfforts: { off: null, high: 'high', max: 'max' }, input: ['text'] },
+              { id: 'deepseek-v4-flash-vision-exp' },
+            ],
+          },
+        },
+      },
+    })
+    apply(ctx, {})
+    await vi.waitFor(() => {
+      const models = userOf(ctx)?.providers['lite-cpa'].models
+      expect(models[0]).toMatchObject({
+        id: 'deepseek-v4-flash',
+        contextWindow: 1048576,
+        maxTokens: 393216,
+      })
+      expect(models[1]).toMatchObject({
+        id: 'deepseek-v4-flash-vision-exp',
+        contextWindow: 1048576,
+        maxTokens: 384000,
+      })
+    })
+  })
+
+  it('preserves user-sized capacities while backfilling only the missing half', async () => {
+    const ctx = await boot({
+      [NS]: {
+        providers: {
+          acme: {
+            models: [
+              { id: 'deepseek-v4-flash', contextWindow: 131072 },
+              { id: 'deepseek-v4-pro', maxTokens: 8192, reasoningEfforts: false },
+            ],
+          },
+        },
+      },
+    })
+    apply(ctx, {})
+    await vi.waitFor(() => {
+      const models = userOf(ctx)?.providers['acme'].models
+      expect(models[0]).toMatchObject({ id: 'deepseek-v4-flash', contextWindow: 131072, maxTokens: 393216 })
+      expect(models[1]).toMatchObject({ id: 'deepseek-v4-pro', contextWindow: 1048576, maxTokens: 8192 })
+    })
+  })
+
   it('projects an explicit capability override onto only the exact provider route', async () => {
     const ctx = await boot()
     await ctx.settings.update(NS, {

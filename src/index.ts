@@ -7,12 +7,16 @@
  * web "custom provider" card deliberately does not write it, so hand-declared
  * third-party models show no reasoning selector. This plugin closes the gap
  * the platform seams allow: it watches the `llm-pi-ai` settings user layer
- * and writes catalog-derived `reasoningEfforts` and `input` declarations only
- * onto supported model entries that lack the corresponding fields.
+ * and writes catalog-derived `reasoningEfforts`, `input`, and capacity
+ * declarations only onto supported model entries that lack the corresponding
+ * fields. Capacity backfill is what keeps a third-party DeepSeek route from
+ * silently falling back to the adapter's conservative 262,144 context window.
  *
  * Contract:
  * - missing `reasoningEfforts` on a catalog-matched model → backfill its map;
  * - missing `input` on a catalog-matched model → backfill its modalities;
+ * - missing `contextWindow`/`maxTokens` on a catalog-matched model → backfill
+ *   the catalog pair (each half independently, so user-sized values survive);
  * - any existing value (map or `false`) → untouched;
  * - composition base → untouched;
  * - writes go through `ctx.settings.mutate` with `expectedRevision`, so a
@@ -40,7 +44,7 @@ import {
   PLUGIN_SETTINGS_NAMESPACE_ID,
 } from './constants.js'
 import { computeEnrichmentOps } from './enrich.js'
-import { resolveModelEfforts, resolveModelInput } from './model-catalog.js'
+import { resolveModelCapacity, resolveModelEfforts, resolveModelInput } from './model-catalog.js'
 import {
   emptyReasoningPluginSettings,
   ReasoningPluginSettingsSchema,
@@ -188,6 +192,8 @@ export function apply(ctx: Context, config: unknown): void {
         return routeCapability(settingsSource(), providerId, modelId)
       }, modelId => {
         return resolveModelInput(modelId)
+      }, modelId => {
+        return resolveModelCapacity(modelId)
       })
       if (ops.length === 0) return
 

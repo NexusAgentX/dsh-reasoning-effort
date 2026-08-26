@@ -5,9 +5,13 @@
 
 import { describe, expect, it } from 'vitest'
 import { computeEnrichmentOps } from '../src/enrich'
+import type { ModelCapacity } from '../src/model-catalog'
 
 const EFFORTS = { off: null, high: 'high' } as const
 const resolveKnown = (modelId: string) => modelId === 'known' || modelId === 'override-known' ? EFFORTS : undefined
+/** The 1M DeepSeek pair, the reason capacity backfill exists. */
+const DEEPSEEK_CAPACITY: ModelCapacity = { contextWindow: 1048576, maxTokens: 393216 }
+const resolveDeepseek = (modelId: string) => modelId === 'deepseek-v4-flash' ? DEEPSEEK_CAPACITY : undefined
 
 describe('computeEnrichmentOps', () => {
   it('is empty for a missing user section', () => {
@@ -157,6 +161,82 @@ describe('computeEnrichmentOps', () => {
       value: {
         vision: { contextWindow: 1000, input: ['text', 'image'] },
         kept: { input: null },
+      },
+    }])
+  })
+
+  it('backfills missing capacities so a third-party DeepSeek route stops at 262k', () => {
+    const ops = computeEnrichmentOps({
+      providers: {
+        acme: {
+          models: [
+            { id: 'deepseek-v4-flash' },
+            { id: 'kept', contextWindow: 65536, maxTokens: 4096 },
+          ],
+        },
+      },
+    }, () => undefined, undefined, undefined, resolveDeepseek)
+
+    expect(ops).toEqual([{
+      op: 'set',
+      path: ['providers', 'acme', 'models'],
+      value: [
+        { id: 'deepseek-v4-flash', contextWindow: 1048576, maxTokens: 393216 },
+        { id: 'kept', contextWindow: 65536, maxTokens: 4096 },
+      ],
+    }])
+  })
+
+  it('fills only the missing half of a capacity pair', () => {
+    const resolve = (modelId: string) => modelId === 'deepseek-v4-flash' || modelId === 'deepseek-v4-pro'
+      ? DEEPSEEK_CAPACITY
+      : undefined
+    const ops = computeEnrichmentOps({
+      providers: {
+        acme: {
+          models: [
+            { id: 'deepseek-v4-flash', contextWindow: 131072 },
+            { id: 'deepseek-v4-pro', maxTokens: 8192 },
+          ],
+        },
+      },
+    }, () => undefined, undefined, undefined, resolve)
+
+    const value = (ops[0] as { value: unknown[] }).value
+    expect(value[0]).toEqual({ id: 'deepseek-v4-flash', contextWindow: 131072, maxTokens: 393216 })
+    expect(value[1]).toEqual({ id: 'deepseek-v4-pro', contextWindow: 1048576, maxTokens: 8192 })
+  })
+
+  it('leaves entries without a catalog capacity untouched', () => {
+    const ops = computeEnrichmentOps({
+      providers: {
+        acme: {
+          models: [
+            { id: 'unknown' },
+            { id: 'kept', contextWindow: 1000, maxTokens: 1000 },
+          ],
+        },
+      },
+    }, () => undefined, undefined, undefined, resolveDeepseek)
+    expect(ops).toEqual([])
+  })
+
+  it('backfills capacities in modelOverrides', () => {
+    const ops = computeEnrichmentOps({
+      providers: {
+        acme: {
+          modelOverrides: {
+            'deepseek-v4-flash': { contextWindow: 1000 },
+          },
+        },
+      },
+    }, () => undefined, undefined, undefined, resolveDeepseek)
+
+    expect(ops).toEqual([{
+      op: 'set',
+      path: ['providers', 'acme', 'modelOverrides'],
+      value: {
+        'deepseek-v4-flash': { contextWindow: 1000, maxTokens: 393216 },
       },
     }])
   })

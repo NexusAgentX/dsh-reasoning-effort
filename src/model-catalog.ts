@@ -15,12 +15,20 @@ interface CatalogModel {
   readonly model: string
   readonly aliases: readonly string[]
   readonly input: ModelInput
+  readonly contextWindow: number | null
+  readonly maxOutputTokens: number | null
   readonly reasoningEfforts: ReasoningEfforts
 }
 
 interface CatalogDocument {
   readonly version: number
   readonly models: readonly CatalogModel[]
+}
+
+/** Capacities a pi-ai model entry should declare. `maxTokens` is pi-ai's spelling of `maxOutputTokens`. */
+export interface ModelCapacity {
+  readonly contextWindow: number
+  readonly maxTokens: number
 }
 
 export const modelCatalog = catalog as CatalogDocument
@@ -100,4 +108,18 @@ export function resolveModelEfforts(modelId: unknown): ReasoningEfforts | undefi
 export function resolveModelInput(modelId: unknown): ModelInput | undefined {
   const model = resolveCatalogModel(modelId)
   return model === undefined ? undefined : copyInput(model.input)
+}
+
+/**
+ * Resolve a user-entered model identifier to its curated capacities. Only a
+ * fully known pair is returned: `llm-pi-ai` defaults an undeclared context
+ * window to 262,144, which is wrong for models the catalog sizes (notably the
+ * 1M DeepSeek family), so a missing declaration must not fall through to the
+ * adapter's conservative guess. A catalog entry with a null capacity has no
+ * answer and stays absent from the model entry.
+ */
+export function resolveModelCapacity(modelId: unknown): ModelCapacity | undefined {
+  const model = resolveCatalogModel(modelId)
+  if (model === undefined || model.contextWindow === null || model.maxOutputTokens === null) return undefined
+  return { contextWindow: model.contextWindow, maxTokens: model.maxOutputTokens }
 }

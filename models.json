@@ -587,6 +587,32 @@
       }
     },
     {
+      "model": "qwen3.8-27b",
+      "aliases": [],
+      "input": ["text", "image"],
+      "contextWindow": 262144,
+      "maxOutputTokens": 262144,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 0.334,
+        "output": 2.451,
+        "cacheRead": 0.111,
+        "cacheWrite": null,
+        "region": "Singapore International"
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "xhigh": "xhigh"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+      }
+    },
+    {
       "model": "kimi-k3",
       "aliases": [],
       "input": ["text", "image"],

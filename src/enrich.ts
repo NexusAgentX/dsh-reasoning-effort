@@ -6,8 +6,8 @@
  * Only the user layer of `llm-pi-ai` is scanned. A model entry the user added
  * through the web "custom provider" card (or wrote into settings.yaml) lives
  * there; the composition base is owned by its own bundle and is never
- * rewritten. Entries that already carry `reasoningEfforts` or `input` are
- * always left alone. The plugin only fills absence.
+ * rewritten. Entries that already carry `reasoningEfforts`, `input`, or
+ * capacities are always left alone. The plugin only fills absence.
  *
  * Each provider gets ONE `set` op for its whole `models` array (and one for
  * its `modelOverrides` dict) rather than a per-index op: the settings seam's
@@ -20,11 +20,12 @@
 
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import type { ReasoningEfforts } from './config.js'
-import type { ModelInput } from './model-catalog.js'
+import type { ModelCapacity, ModelInput } from './model-catalog.js'
 import type { ReasoningCapability } from './plugin-settings.js'
 
 export type ModelEffortResolver = (modelId: string) => ReasoningEfforts | undefined
 export type ModelInputResolver = (modelId: string) => ModelInput | undefined
+export type ModelCapacityResolver = (modelId: string) => ModelCapacity | undefined
 export type ModelCapabilityOverrideResolver = (
   providerId: string,
   modelId: string,
@@ -75,6 +76,7 @@ function enrichedEntry(
   resolveEfforts: ModelEffortResolver,
   resolveOverride: ModelCapabilityOverrideResolver,
   resolveInput: ModelInputResolver,
+  resolveCapacity: ModelCapacityResolver,
   providerId: string,
   fallbackModelId?: string,
 ): unknown {
@@ -95,16 +97,29 @@ function enrichedEntry(
     const input = resolveInput(modelId)
     if (input !== undefined) changes.input = copyInput(input)
   }
+  if (entry['contextWindow'] === undefined || entry['maxTokens'] === undefined) {
+    const capacity = resolveCapacity(modelId)
+    if (capacity !== undefined) {
+      // The pi-ai model entry reads `maxTokens`, not the catalog's
+      // `maxOutputTokens` spelling. Backfill only the missing half so a
+      // user-sized model keeps its own values.
+      if (entry['contextWindow'] === undefined) changes.contextWindow = capacity.contextWindow
+      if (entry['maxTokens'] === undefined) changes.maxTokens = capacity.maxTokens
+    }
+  }
   return Object.keys(changes).length === 0 ? entry : { ...entry, ...changes }
 }
 
 /**
  * Compute the `set` ops that give only catalog-recognized model entries missing
- * `reasoningEfforts` or `input` their supported capability declarations.
+ * `reasoningEfforts`, `input`, or capacities their supported capability
+ * declarations. Capacities come from the same catalog match, so a third-party
+ * DeepSeek route stops falling back to the adapter's 262,144 guess.
  * @param user - the raw `llm-pi-ai` user section (detached descriptor copy).
  * @param resolveEfforts - returns a supported map for a recognized model.
  * @param resolveOverride - returns an explicit exact-route user override.
  * @param resolveInput - returns supported input modalities for a recognized model.
+ * @param resolveCapacity - returns supported capacities for a recognized model.
  * @returns path ops addressing `providers.<route>.models` and
  *   `providers.<route>.modelOverrides`, in document order.
  */
@@ -113,6 +128,7 @@ export function computeEnrichmentOps(
   resolveEfforts: ModelEffortResolver,
   resolveOverride: ModelCapabilityOverrideResolver = () => undefined,
   resolveInput: ModelInputResolver = () => undefined,
+  resolveCapacity: ModelCapacityResolver = () => undefined,
 ): readonly SettingsPathOp[] {
   if (!isPlainObject(user)) return []
   const providers = user['providers']
@@ -125,7 +141,8 @@ export function computeEnrichmentOps(
 
     const models = profile['models']
     if (Array.isArray(models)) {
-      const next = models.map(entry => enrichedEntry(entry, resolveEfforts, resolveOverride, resolveInput, route))
+      const next = models.map(entry =>
+        enrichedEntry(entry, resolveEfforts, resolveOverride, resolveInput, resolveCapacity, route))
       if (next.some((entry, index) => entry !== models[index])) {
         ops.push({
           op: 'set',
@@ -140,7 +157,9 @@ export function computeEnrichmentOps(
       const next: Record<string, unknown> = {}
       let changed = false
       for (const [model, entry] of Object.entries(overrides)) {
-        const enriched = enrichedEntry(entry, resolveEfforts, resolveOverride, resolveInput, route, model)
+        const enriched = enrichedEntry(
+          entry, resolveEfforts, resolveOverride, resolveInput, resolveCapacity, route, model,
+        )
         Object.defineProperty(next, model, {
           value: enriched, enumerable: true, configurable: true, writable: true,
         })

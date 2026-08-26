@@ -1,7 +1,7 @@
 import catalog from '../models.json'
 import { describe, expect, it } from 'vitest'
 import { REASONING_LEVELS } from '../src/config'
-import { resolveModelEfforts, resolveModelInput } from '../src/model-catalog'
+import { resolveModelCapacity, resolveModelEfforts, resolveModelInput } from '../src/model-catalog'
 
 type NumberOrNull = number | null
 
@@ -43,7 +43,7 @@ const expectedModels = [
   'deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp',
   'grok-4.5', 'grok-4.6',
   'qwen3.7-max', 'qwen3.7-plus',
-  'qwen3.7-flash', 'qwen3.8-max',
+  'qwen3.7-flash', 'qwen3.8-max', 'qwen3.8-27b',
   'kimi-k3',
   'glm-5.3',
   'mimo-v2.5',
@@ -56,10 +56,10 @@ function isNonNegativeNumberOrNull(value: unknown): value is NumberOrNull {
 }
 
 describe('model catalog', () => {
-  it('contains exactly the curated 26 unique models', () => {
+  it('contains exactly the curated 27 unique models', () => {
     expect(catalog.version).toBe(1)
-    expect(entries).toHaveLength(26)
-    expect(new Set(entries.map(entry => entry.model)).size).toBe(26)
+    expect(entries).toHaveLength(27)
+    expect(new Set(entries.map(entry => entry.model)).size).toBe(27)
     expect(entries.map(entry => entry.model).sort()).toEqual([...expectedModels].sort())
   })
 
@@ -104,6 +104,28 @@ describe('model catalog', () => {
     expect(resolveModelInput('DeepSeek/DEEPSEEK_V4_FLASH')).toEqual(['text'])
     expect(resolveModelInput('deepseek-v4-flash-vision-exp')).toEqual(['text', 'image'])
     expect(resolveModelInput('mimo-v2.5-pro')).toEqual(['text'])
+  })
+
+  it('resolves curated capacities without a provider', () => {
+    expect(resolveModelCapacity('DeepSeek/DEEPSEEK_V4_FLASH')).toEqual({
+      contextWindow: 1048576,
+      maxTokens: 393216,
+    })
+    expect(resolveModelCapacity('deepseek-v4-pro')).toEqual({
+      contextWindow: 1048576,
+      maxTokens: 393216,
+    })
+    // pi-ai reads `maxTokens`, so the catalog's `maxOutputTokens` spelling is
+    // translated by the resolver before it reaches a model entry.
+    expect(resolveModelCapacity('gpt-5.4')).toEqual({
+      contextWindow: 1050000,
+      maxTokens: 128000,
+    })
+  })
+
+  it('resolves no capacity for an unknown or underspecified model', () => {
+    expect(resolveModelCapacity('unknown-model')).toBeUndefined()
+    expect(resolveModelCapacity('gpt-5.4-2026-08-15')).toBeUndefined()
   })
 
   it('accepts a high-confidence typo with a unique best candidate', () => {
