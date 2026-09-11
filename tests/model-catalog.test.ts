@@ -41,7 +41,7 @@ const expectedModels = [
   'claude-opus-4.6', 'claude-opus-4.7', 'claude-opus-4.8', 'claude-opus-5',
   'claude-sonnet-4.6', 'claude-sonnet-5', 'claude-fable-5', 'claude-fable-5-1',
   'deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp', 'deepseek-flash',
-  'gemini-3.7-flash',
+  'gemini-3.7-flash', 'gemini-3.8-flash',
   'grok-4.5', 'grok-4.6',
   'qwen3.7-max', 'qwen3.7-plus',
   'qwen3.7-flash', 'qwen3.8-max', 'qwen3.8-27b',
@@ -59,10 +59,10 @@ function isNonNegativeNumberOrNull(value: unknown): value is NumberOrNull {
 }
 
 describe('model catalog', () => {
-  it('contains exactly the curated 33 unique models', () => {
+  it('contains exactly the curated 34 unique models', () => {
     expect(catalog.version).toBe(1)
-    expect(entries).toHaveLength(33)
-    expect(new Set(entries.map(entry => entry.model)).size).toBe(33)
+    expect(entries).toHaveLength(34)
+    expect(new Set(entries.map(entry => entry.model)).size).toBe(34)
     expect(entries.map(entry => entry.model).sort()).toEqual([...expectedModels].sort())
   })
 
@@ -138,6 +138,18 @@ describe('model catalog', () => {
         maxTokens: 384000,
       })
     }
+
+    expect(resolveModelEfforts('gemini-3.8-flash')).toEqual({
+      off: null,
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+    })
+    expect(resolveModelInput('gemini-3.8-flash')).toEqual(['text', 'image'])
+    expect(resolveModelCapacity('google/gemini-3.8-flash')).toEqual({
+      contextWindow: 1048576,
+      maxTokens: 65536,
+    })
   })
 
   it('does not include an open-weight Qwen model', () => {

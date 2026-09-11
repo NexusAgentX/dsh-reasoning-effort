@@ -538,6 +538,31 @@
       }
     },
     {
+      "model": "gemini-3.8-flash",
+      "aliases": [],
+      "input": ["text", "image"],
+      "contextWindow": 1048576,
+      "maxOutputTokens": 65536,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 0.75,
+        "output": 3.75,
+        "cacheRead": 0.075,
+        "cacheWrite": 0.038
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://ai.google.dev/gemini-api/docs/pricing"
+      }
+    },
+    {
       "model": "grok-4.5",
       "aliases": [],
       "input": ["text", "image"],
