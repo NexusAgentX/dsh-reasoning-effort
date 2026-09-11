@@ -37,15 +37,18 @@ const textOnlyModels = new Set([
   'hy3',
 ])
 const expectedModels = [
-  'gpt-5.4', 'gpt-5.5', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna',
+  'gpt-5.4', 'gpt-5.5', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra',
   'claude-opus-4.6', 'claude-opus-4.7', 'claude-opus-4.8', 'claude-opus-5',
-  'claude-sonnet-4.6', 'claude-sonnet-5', 'claude-fable-5',
-  'deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp',
+  'claude-sonnet-4.6', 'claude-sonnet-5', 'claude-fable-5', 'claude-fable-5-1',
+  'deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp', 'deepseek-flash',
+  'gemini-3.7-flash',
   'grok-4.5', 'grok-4.6',
   'qwen3.7-max', 'qwen3.7-plus',
   'qwen3.7-flash', 'qwen3.8-max', 'qwen3.8-27b',
+  'qwen3.8-flash',
   'kimi-k3',
   'glm-5.3',
+  'glm-5.3-flash',
   'mimo-v2.5',
   'mimo-v2.5-pro',
   'hy3',
@@ -56,10 +59,10 @@ function isNonNegativeNumberOrNull(value: unknown): value is NumberOrNull {
 }
 
 describe('model catalog', () => {
-  it('contains exactly the curated 27 unique models', () => {
+  it('contains exactly the curated 33 unique models', () => {
     expect(catalog.version).toBe(1)
-    expect(entries).toHaveLength(27)
-    expect(new Set(entries.map(entry => entry.model)).size).toBe(27)
+    expect(entries).toHaveLength(33)
+    expect(new Set(entries.map(entry => entry.model)).size).toBe(33)
     expect(entries.map(entry => entry.model).sort()).toEqual([...expectedModels].sort())
   })
 
@@ -88,6 +91,52 @@ describe('model catalog', () => {
       }
       expect(new URL(entry.sources.capabilities).protocol).toBe('https:')
       expect(new URL(entry.sources.pricing).protocol).toBe('https:')
+    }
+  })
+
+  it('resolves the curated 2026-09 additions', () => {
+    expect(resolveModelEfforts('gpt-6-astra')).toEqual({
+      off: null,
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+      xhigh: 'xhigh',
+      max: 'max',
+    })
+    expect(resolveModelInput('gpt-6-astra')).toEqual(['text', 'image'])
+    expect(resolveModelCapacity('openai/gpt-6-astra')).toEqual({
+      contextWindow: 1050000,
+      maxTokens: 128000,
+    })
+
+    // Both the canonical dashed id and the dotted spelling providers publish
+    // normalize to the same key, and the bare model name is an explicit alias.
+    for (const modelId of ['claude-fable-5-1', 'claude-fable-5.1', 'fable-5.1', 'anthropic/claude-fable-5.1']) {
+      expect(resolveModelEfforts(modelId)).toEqual({
+        off: null,
+        low: 'low',
+        medium: 'medium',
+        high: 'high',
+        xhigh: 'xhigh',
+        max: 'max',
+      })
+      expect(resolveModelInput(modelId)).toEqual(['text', 'image'])
+      expect(resolveModelCapacity(modelId)).toEqual({
+        contextWindow: 1000000,
+        maxTokens: 128000,
+      })
+    }
+
+    // `deepseek-v4.1-flash` is the spelling aggregators publish for the same
+    // model; without its alias it fuzzy-matched the retired flash entry and
+    // reported that entry's text-only input.
+    for (const modelId of ['deepseek-flash', 'DeepSeek/DeepSeek-Flash', 'deepseek-v4.1-flash']) {
+      expect(resolveModelEfforts(modelId)).toEqual({ off: null, low: 'low', high: 'high', max: 'max' })
+      expect(resolveModelInput(modelId)).toEqual(['text', 'image'])
+      expect(resolveModelCapacity(modelId)).toEqual({
+        contextWindow: 1000000,
+        maxTokens: 384000,
+      })
     }
   })
 

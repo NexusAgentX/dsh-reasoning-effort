@@ -144,6 +144,36 @@
       }
     },
     {
+      "model": "gpt-6-astra",
+      "aliases": [],
+      "input": ["text", "image"],
+      "contextWindow": 1050000,
+      "maxOutputTokens": 128000,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 10,
+        "output": 50,
+        "cacheRead": 1,
+        "cacheWrite": 12.5,
+        "tiers": [
+          { "condition": "promptTokens > 272000", "input": 20, "output": 75, "cacheRead": 2, "cacheWrite": 25 }
+        ]
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://developers.openai.com/api/docs/models/gpt-6-astra"
+      }
+    },
+    {
       "model": "claude-opus-4.6",
       "aliases": [],
       "input": ["text", "image"],
@@ -354,6 +384,36 @@
       }
     },
     {
+      "model": "claude-fable-5-1",
+      "aliases": ["fable-5.1"],
+      "input": ["text", "image"],
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 10,
+        "output": 50,
+        "cacheRead": 0.25,
+        "cacheWrite": 12.5,
+        "tiers": [
+          { "condition": "1h cache write", "cacheWrite": 20 }
+        ]
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "max"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://docs.anthropic.com/en/docs/about-claude/pricing"
+      }
+    },
+    {
       "model": "deepseek-v4-flash",
       "aliases": [],
       "input": ["text"],
@@ -424,6 +484,57 @@
       "sources": {
         "capabilities": "https://models.dev/api.json",
         "pricing": "https://api-docs.deepseek.com/news/news260821/"
+      }
+    },
+    {
+      "model": "deepseek-flash",
+      "aliases": ["deepseek-v4.1-flash"],
+      "input": ["text", "image"],
+      "contextWindow": 1000000,
+      "maxOutputTokens": 384000,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 0.15,
+        "output": 0.6,
+        "cacheRead": 0.003,
+        "cacheWrite": null,
+        "conditions": "Off-peak rate; peak hours (01:00-04:00, 06:00-10:00 UTC Mon-Fri) are 2x."
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://api-docs.deepseek.com/quick_start/pricing"
+      }
+    },
+    {
+      "model": "gemini-3.7-flash",
+      "aliases": [],
+      "input": ["text", "image"],
+      "contextWindow": 1048576,
+      "maxOutputTokens": 1048576,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 0.75,
+        "output": 3.75,
+        "cacheRead": 0.075,
+        "cacheWrite": 0.038
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://ai.google.dev/gemini-api/docs/pricing"
       }
     },
     {
@@ -613,6 +724,30 @@
       }
     },
     {
+      "model": "qwen3.8-flash",
+      "aliases": [],
+      "input": ["text", "image"],
+      "contextWindow": 1000000,
+      "maxOutputTokens": 131072,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 0.16,
+        "output": 0.47,
+        "cacheRead": 0.016,
+        "cacheWrite": 0.2,
+        "region": "Singapore International"
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "high": "high"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+      }
+    },
+    {
       "model": "kimi-k3",
       "aliases": [],
       "input": ["text", "image"],
@@ -649,6 +784,31 @@
         "input": 1.4,
         "output": 4.4,
         "cacheRead": 0.26,
+        "cacheWrite": null
+      },
+      "reasoningEfforts": {
+        "off": null,
+        "low": "low",
+        "high": "high",
+        "max": "max"
+      },
+      "sources": {
+        "capabilities": "https://models.dev/api.json",
+        "pricing": "https://docs.z.ai/guides/glm-5/pricing"
+      }
+    },
+    {
+      "model": "glm-5.3-flash",
+      "aliases": [],
+      "input": ["text", "image"],
+      "contextWindow": 1048576,
+      "maxOutputTokens": 131072,
+      "pricing": {
+        "currency": "USD",
+        "unit": "per_million_tokens",
+        "input": 0.15,
+        "output": 0.5,
+        "cacheRead": 0.03,
         "cacheWrite": null
       },
       "reasoningEfforts": {
