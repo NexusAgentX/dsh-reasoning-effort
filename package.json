@@ -35,15 +35,19 @@
   "files": [
     "lib",
     "cordis.patch.yml",
-    "models.json",
+    "models",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
+    "generate:models": "node scripts/generate-model-catalog.mjs",
+    "check:models": "node scripts/generate-model-catalog.mjs --check",
+    "prebuild": "node scripts/generate-model-catalog.mjs",
     "build": "node build.mjs",
-    "prepack": "node build.mjs",
+    "pretest": "node scripts/generate-model-catalog.mjs",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "prepack": "node scripts/generate-model-catalog.mjs && node build.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
@@ -86,6 +90,7 @@
     "esbuild": "^0.28.2",
     "react": "^18.3.1",
     "react-dom": "^18.2.0",
+    "smol-toml": "^1.9.1",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0"
   },

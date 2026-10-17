@@ -1,0 +1,56 @@
+# MiniMax 系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "minimax"
+description = "MiniMax 系列"
+
+[[models]]
+model = "MiniMax-M3"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1000000
+maxOutputTokens = 512000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.3
+output = 1.2
+cacheRead = 0.06
+
+[[models.pricing.tiers]]
+condition = "promptTokens > 512000"
+input = 0.6
+output = 2.4
+cacheRead = 0.12
+
+[models.reasoningEfforts]
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://platform.minimax.io/docs/guides/pricing"
+
+[[models]]
+model = "MiniMax-M3.1-Flash-Preview"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1000000
+maxOutputTokens = 512000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+conditions = "MiniMax Coding Plan subscription; per-token API pricing is not published."
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://platform.minimax.io/docs/guides/pricing"

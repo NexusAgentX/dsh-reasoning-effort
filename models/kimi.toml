@@ -1,0 +1,29 @@
+# Moonshot Kimi 系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "kimi"
+description = "Moonshot Kimi 系列"
+
+[[models]]
+model = "kimi-k3"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1048560
+maxOutputTokens = 1048560
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 3
+output = 15
+cacheRead = 0.3
+
+[models.reasoningEfforts]
+low = "low"
+high = "high"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://platform.moonshot.cn/docs/pricing/chat"

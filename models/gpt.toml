@@ -1,0 +1,276 @@
+# OpenAI GPT 系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "gpt"
+description = "OpenAI GPT 系列"
+
+[[models]]
+model = "gpt-5.4"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1050000
+maxOutputTokens = 128000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 2.5
+output = 15
+cacheRead = 0.25
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://developers.openai.com/api/docs/models/gpt-5.4"
+
+[[models]]
+model = "gpt-5.5"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1050000
+maxOutputTokens = 128000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://developers.openai.com/api/docs/models/compare"
+
+[[models]]
+model = "gpt-5.6-sol"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1050000
+maxOutputTokens = 128000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 5
+output = 30
+cacheRead = 0.5
+cacheWrite = 6.25
+
+[[models.pricing.tiers]]
+condition = "promptTokens > 272000"
+input = 10
+output = 45
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
+
+[[models]]
+model = "gpt-5.6-terra"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1050000
+maxOutputTokens = 128000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 2
+output = 12
+cacheRead = 0.2
+cacheWrite = 2.5
+
+[[models.pricing.tiers]]
+condition = "promptTokens > 272000"
+input = 4
+output = 18
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+
+[[models]]
+model = "gpt-5.6-luna"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1050000
+maxOutputTokens = 128000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.2
+output = 1.2
+cacheRead = 0.02
+cacheWrite = 0.25
+
+[[models.pricing.tiers]]
+condition = "promptTokens > 272000"
+input = 0.4
+output = 1.8
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://developers.openai.com/api/docs/models/gpt-5.6-luna"
+
+[[models]]
+model = "gpt-6-astra"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1050000
+maxOutputTokens = 128000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 10
+output = 50
+cacheRead = 1
+cacheWrite = 12.5
+
+[[models.pricing.tiers]]
+condition = "promptTokens > 272000"
+input = 20
+output = 75
+cacheRead = 2
+cacheWrite = 25
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://developers.openai.com/api/docs/models/gpt-6-astra"
+
+[[models]]
+model = "gpt-6-sol"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1050000
+maxOutputTokens = 128000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 2
+output = 10
+cacheRead = 0.2
+cacheWrite = 2.5
+
+[[models.pricing.tiers]]
+condition = "promptTokens > 272000"
+input = 4
+output = 15
+cacheRead = 0.4
+cacheWrite = 5
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://developers.openai.com/api/docs/models/gpt-6-sol"
+
+[[models]]
+model = "gpt-6-luna"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1050000
+maxOutputTokens = 128000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.1
+output = 0.5
+cacheRead = 0.01
+cacheWrite = 0.125
+
+[[models.pricing.tiers]]
+condition = "promptTokens > 272000"
+input = 0.2
+output = 0.75
+cacheRead = 0.02
+cacheWrite = 0.25
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://developers.openai.com/api/docs/models/gpt-6-luna"
+
+[[models]]
+model = "gpt-6.1-sol"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1050000
+maxOutputTokens = 128000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 2
+output = 10
+cacheRead = 0.1
+cacheWrite = 2.5
+
+[[models.pricing.tiers]]
+condition = "promptTokens > 272000"
+input = 4
+output = 15
+cacheRead = 0.2
+cacheWrite = 5
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://developers.openai.com/api/docs/models/gpt-6.1-sol"

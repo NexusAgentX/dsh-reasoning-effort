@@ -1,0 +1,91 @@
+# DeepSeek 系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "deepseek"
+description = "DeepSeek 系列"
+
+[[models]]
+model = "deepseek-v4-flash"
+aliases = []
+input = [ "text" ]
+contextWindow = 1048576
+maxOutputTokens = 393216
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+
+[models.reasoningEfforts]
+high = "high"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://api-docs.deepseek.com/news/news260813/"
+
+[[models]]
+model = "deepseek-v4-pro"
+aliases = []
+input = [ "text" ]
+contextWindow = 1048576
+maxOutputTokens = 393216
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+
+[models.reasoningEfforts]
+high = "high"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://api-docs.deepseek.com/news/news260813/"
+
+[[models]]
+model = "deepseek-v4-flash-vision-exp"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1048576
+maxOutputTokens = 384000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.22
+output = 0.66
+cacheRead = 0.007
+
+[models.reasoningEfforts]
+low = "low"
+high = "high"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://api-docs.deepseek.com/news/news260821/"
+
+[[models]]
+model = "deepseek-flash"
+aliases = [ "deepseek-v4.1-flash" ]
+input = [ "text", "image" ]
+contextWindow = 1000000
+maxOutputTokens = 384000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.15
+output = 0.6
+cacheRead = 0.003
+conditions = "Off-peak rate; peak hours (01:00-04:00, 06:00-10:00 UTC Mon-Fri) are 2x."
+
+[models.reasoningEfforts]
+low = "low"
+high = "high"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://api-docs.deepseek.com/quick_start/pricing"

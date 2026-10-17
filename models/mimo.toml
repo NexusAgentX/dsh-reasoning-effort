@@ -1,0 +1,113 @@
+# 小米 MiMo 系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "mimo"
+description = "小米 MiMo 系列"
+
+[[models]]
+model = "mimo-v2.5"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1048576
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.14
+output = 0.28
+cacheRead = 0.0028
+cacheWrite = 0
+
+[models.reasoningEfforts]
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.mimo.com/pricing"
+
+[[models]]
+model = "mimo-v2.5-pro"
+aliases = []
+input = [ "text" ]
+contextWindow = 1048576
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.435
+output = 0.87
+cacheRead = 0.0036
+cacheWrite = 0
+
+[models.reasoningEfforts]
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.mimo.com/pricing"
+
+[[models]]
+model = "mimo-v2.6-pro"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1048576
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.435
+output = 0.87
+cacheRead = 0.0036
+
+[models.reasoningEfforts]
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.mimo.com/pricing"
+
+[[models]]
+model = "mimo-v2.6-flash"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1048576
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.14
+output = 0.28
+cacheRead = 0.0028
+
+[models.reasoningEfforts]
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.mimo.com/pricing"
+
+[[models]]
+model = "mimo-v2.6-pro-ultraspeed"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1048576
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 4.35
+output = 8.7
+cacheRead = 0.036
+
+[models.reasoningEfforts]
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.mimo.com/pricing"

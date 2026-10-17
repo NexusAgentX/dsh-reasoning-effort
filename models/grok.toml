@@ -1,0 +1,95 @@
+# xAI Grok 系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "grok"
+description = "xAI Grok 系列"
+
+[[models]]
+model = "grok-4.5"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 500000
+maxOutputTokens = 500000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 2
+output = 6
+cacheRead = 0.3
+
+[[models.pricing.tiers]]
+condition = "promptTokens >= 200000"
+input = 4
+output = 12
+cacheRead = 0.6
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.x.ai/developers/pricing"
+
+[[models]]
+model = "grok-4.6"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 500000
+maxOutputTokens = 500000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 2
+output = 6
+cacheRead = 0.5
+
+[[models.pricing.tiers]]
+condition = "promptTokens >= 200000"
+input = 4
+output = 12
+cacheRead = 1
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.x.ai/developers/pricing"
+
+[[models]]
+model = "grok-4.7"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 500000
+maxOutputTokens = 500000
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 2
+output = 6
+cacheRead = 0.5
+
+[[models.pricing.tiers]]
+condition = "promptTokens > 200000"
+input = 4
+output = 12
+cacheRead = 1
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+xhigh = "xhigh"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.x.ai/developers/pricing"

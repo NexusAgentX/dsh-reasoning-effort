@@ -1,0 +1,61 @@
+# 商汤 SenseNova 系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "sensenova"
+description = "商汤 SenseNova 系列"
+
+[[models]]
+model = "sensenova-6.8-flash-lite"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 262144
+maxOutputTokens = 65536
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0
+output = 0
+cacheRead = 0
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://platform.sensenova.ai/docs"
+
+[[models]]
+model = "sensenova-u1.5-lite"
+aliases = []
+input = [ "text", "image" ]
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+conditions = "Image generation/editing model; per-token context/output limits and pricing are not applicable."
+
+[models.reasoningEfforts]
+
+[models.sources]
+capabilities = "https://platform.sensenova.ai/docs"
+pricing = "https://www.sensenova.ai/token-plan"
+
+[[models]]
+model = "sensenova-u1.5-fast"
+aliases = []
+input = [ "text", "image" ]
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+conditions = "Image generation/editing model; per-token context/output limits and pricing are not applicable."
+
+[models.reasoningEfforts]
+
+[models.sources]
+capabilities = "https://platform.sensenova.ai/docs"
+pricing = "https://www.sensenova.ai/token-plan"

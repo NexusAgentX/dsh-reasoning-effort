@@ -1,0 +1,77 @@
+# Google Gemini 系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "gemini"
+description = "Google Gemini 系列"
+
+[[models]]
+model = "gemini-3.7-flash"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1048576
+maxOutputTokens = 1048576
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.75
+output = 3.75
+cacheRead = 0.075
+cacheWrite = 0.038
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://ai.google.dev/gemini-api/docs/pricing"
+
+[[models]]
+model = "gemini-3.8-flash"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1048576
+maxOutputTokens = 65536
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.75
+output = 3.75
+cacheRead = 0.075
+cacheWrite = 0.038
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://ai.google.dev/gemini-api/docs/pricing"
+
+[[models]]
+model = "gemini-4-argon"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1048576
+maxOutputTokens = 32768
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 2
+output = 10
+cacheRead = 0.1
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://ai.google.dev/gemini-api/docs/pricing"

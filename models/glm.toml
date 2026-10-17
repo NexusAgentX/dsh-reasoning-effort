@@ -1,0 +1,76 @@
+# 智谱 GLM 系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "glm"
+description = "智谱 GLM 系列"
+
+[[models]]
+model = "glm-5.3"
+aliases = []
+input = [ "text" ]
+contextWindow = 1048576
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 1.4
+output = 4.4
+cacheRead = 0.26
+
+[models.reasoningEfforts]
+low = "low"
+high = "high"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.z.ai/guides/glm-5/pricing"
+
+[[models]]
+model = "glm-5.3-flash"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1048576
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.15
+output = 0.5
+cacheRead = 0.03
+
+[models.reasoningEfforts]
+low = "low"
+high = "high"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.z.ai/guides/glm-5/pricing"
+
+[[models]]
+model = "glm-5.3-flashx"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1000000
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.37
+output = 1.25
+cacheRead = 0.075
+cacheWrite = 0
+
+[models.reasoningEfforts]
+low = "low"
+high = "high"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://docs.z.ai/guides/glm-5/pricing"

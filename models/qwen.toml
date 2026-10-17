@@ -1,0 +1,166 @@
+# 阿里云 Qwen 系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "qwen"
+description = "阿里云 Qwen 系列"
+
+[[models]]
+model = "qwen3.7-max"
+aliases = []
+input = [ "text" ]
+contextWindow = 1000000
+maxOutputTokens = 65536
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 2.5
+output = 7.5
+region = "Singapore International"
+conditions = "Official list price; a time-limited discount may apply."
+
+[models.reasoningEfforts]
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+
+[[models]]
+model = "qwen3.7-plus"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 991808
+maxOutputTokens = 65536
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.4
+output = 1.6
+region = "Singapore International"
+
+[[models.pricing.tiers]]
+condition = "promptTokens > 256000"
+input = 1.2
+output = 4.8
+
+[models.reasoningEfforts]
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+
+[[models]]
+model = "qwen3.7-flash"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 991808
+maxOutputTokens = 65536
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+region = "Singapore International"
+
+[models.reasoningEfforts]
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+
+[[models]]
+model = "qwen3.8-max"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 991000
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+region = "Singapore International"
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+high = "high"
+max = "max"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+
+[[models]]
+model = "qwen3.8-27b"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 262144
+maxOutputTokens = 262144
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.334
+output = 2.451
+cacheRead = 0.111
+region = "Singapore International"
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+xhigh = "xhigh"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+
+[[models]]
+model = "qwen3.8-flash"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1000000
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.16
+output = 0.47
+cacheRead = 0.016
+cacheWrite = 0.2
+region = "Singapore International"
+
+[models.reasoningEfforts]
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://www.alibabacloud.com/help/en/model-studio/model-pricing"
+
+[[models]]
+model = "qwen3.8-omni-flash"
+aliases = []
+input = [ "text", "image" ]
+contextWindow = 1000000
+maxOutputTokens = 131072
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.15
+output = 0.47
+cacheRead = 0.016
+region = "Singapore International"
+
+[models.reasoningEfforts]
+low = "low"
+medium = "medium"
+xhigh = "xhigh"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://www.alibabacloud.com/help/en/model-studio/model-pricing"

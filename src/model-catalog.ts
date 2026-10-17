@@ -6,21 +6,48 @@
  * @module dsh-reasoning-effort/model-catalog
  */
 
-import catalog from '../models.json'
+import catalog from './model-catalog.generated.json'
 import type { ReasoningEfforts } from './config.js'
 
 export type ModelInput = readonly ('text' | 'image')[]
 
-interface CatalogModel {
+export interface CatalogPricingTier {
+  readonly condition: string
+  readonly input?: number
+  readonly output?: number
+  readonly cacheRead?: number
+  readonly cacheWrite?: number
+}
+
+export interface CatalogPricing {
+  readonly currency: string
+  readonly unit: string
+  readonly input: number | null
+  readonly output: number | null
+  readonly cacheRead: number | null
+  readonly cacheWrite: number | null
+  readonly tiers?: readonly CatalogPricingTier[]
+  readonly region?: string
+  readonly conditions?: string
+}
+
+export interface CatalogSources {
+  readonly capabilities: string
+  readonly pricing: string
+}
+
+export interface CatalogModel {
   readonly model: string
   readonly aliases: readonly string[]
   readonly input: ModelInput
   readonly contextWindow: number | null
   readonly maxOutputTokens: number | null
+  readonly pricing: CatalogPricing
   readonly reasoningEfforts: ReasoningEfforts
+  readonly sources: CatalogSources
 }
 
-interface CatalogDocument {
+export interface CatalogDocument {
   readonly version: number
   readonly models: readonly CatalogModel[]
 }

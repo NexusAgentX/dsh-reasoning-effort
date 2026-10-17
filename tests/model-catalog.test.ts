@@ -1,7 +1,11 @@
-import catalog from '../models.json'
 import { describe, expect, it } from 'vitest'
 import { REASONING_LEVELS } from '../src/config'
-import { resolveModelCapacity, resolveModelEfforts, resolveModelInput } from '../src/model-catalog'
+import {
+  modelCatalog as catalog,
+  resolveModelCapacity,
+  resolveModelEfforts,
+  resolveModelInput,
+} from '../src/model-catalog'
 
 type NumberOrNull = number | null
 
@@ -26,7 +30,7 @@ interface CatalogEntry {
   readonly sources: { readonly capabilities: string, readonly pricing: string }
 }
 
-const entries = catalog.models as readonly CatalogEntry[]
+const entries = catalog.models as readonly unknown[] as readonly CatalogEntry[]
 const allowedLevels = new Set<string>(REASONING_LEVELS)
 const textOnlyModels = new Set([
   'deepseek-v4-flash',
@@ -38,20 +42,24 @@ const textOnlyModels = new Set([
 ])
 const expectedModels = [
   'gpt-5.4', 'gpt-5.5', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra',
-  'claude-opus-4.6', 'claude-opus-4.7', 'claude-opus-4.8', 'claude-opus-5',
-  'claude-sonnet-4.6', 'claude-sonnet-5', 'claude-fable-5', 'claude-fable-5-1',
+  'gpt-6-sol', 'gpt-6-luna', 'gpt-6.1-sol',
+  'claude-opus-4.6', 'claude-opus-4.7', 'claude-opus-4.8', 'claude-opus-5', 'claude-opus-5-5',
+  'claude-sonnet-4.6', 'claude-sonnet-5', 'claude-sonnet-5-5',
+  'claude-fable-5', 'claude-fable-5-1', 'claude-haiku-5-5',
   'deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp', 'deepseek-flash',
-  'gemini-3.7-flash', 'gemini-3.8-flash',
-  'grok-4.5', 'grok-4.6',
+  'gemini-3.7-flash', 'gemini-3.8-flash', 'gemini-4-argon',
+  'grok-4.5', 'grok-4.6', 'grok-4.7',
   'qwen3.7-max', 'qwen3.7-plus',
   'qwen3.7-flash', 'qwen3.8-max', 'qwen3.8-27b',
-  'qwen3.8-flash',
+  'qwen3.8-flash', 'qwen3.8-omni-flash',
   'kimi-k3',
   'glm-5.3',
-  'glm-5.3-flash',
+  'glm-5.3-flash', 'glm-5.3-flashx',
   'mimo-v2.5',
-  'mimo-v2.5-pro',
+  'mimo-v2.5-pro', 'mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.6-pro-ultraspeed',
   'hy3',
+  'sensenova-6.8-flash-lite', 'sensenova-u1.5-lite', 'sensenova-u1.5-fast',
+  'MiniMax-M3', 'MiniMax-M3.1-Flash-Preview',
 ] as const
 
 function isNonNegativeNumberOrNull(value: unknown): value is NumberOrNull {
@@ -59,10 +67,10 @@ function isNonNegativeNumberOrNull(value: unknown): value is NumberOrNull {
 }
 
 describe('model catalog', () => {
-  it('contains exactly the curated 34 unique models', () => {
+  it('contains exactly the curated 52 unique models', () => {
     expect(catalog.version).toBe(1)
-    expect(entries).toHaveLength(34)
-    expect(new Set(entries.map(entry => entry.model)).size).toBe(34)
+    expect(entries).toHaveLength(52)
+    expect(new Set(entries.map(entry => entry.model)).size).toBe(52)
     expect(entries.map(entry => entry.model).sort()).toEqual([...expectedModels].sort())
   })
 
@@ -149,6 +157,113 @@ describe('model catalog', () => {
     expect(resolveModelCapacity('google/gemini-3.8-flash')).toEqual({
       contextWindow: 1048576,
       maxTokens: 65536,
+    })
+  })
+
+  it('resolves the curated 2026-10 family additions', () => {
+    const cases = [
+      {
+        modelId: 'gpt-6-sol',
+        efforts: { off: null, low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' },
+        capacity: { contextWindow: 1050000, maxTokens: 128000 },
+      },
+      {
+        modelId: 'openai/gpt-6.1-sol',
+        efforts: { off: null, low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' },
+        capacity: { contextWindow: 1050000, maxTokens: 128000 },
+      },
+      {
+        modelId: 'anthropic/claude-opus-5.5',
+        efforts: { off: null, low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' },
+        capacity: { contextWindow: 1000000, maxTokens: 128000 },
+      },
+      {
+        modelId: 'claude-sonnet-5.5',
+        efforts: { off: null, low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' },
+        capacity: { contextWindow: 1000000, maxTokens: 128000 },
+      },
+      {
+        modelId: 'claude-haiku-5-5',
+        efforts: { off: null, low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh', max: 'max' },
+        capacity: { contextWindow: 1000000, maxTokens: 128000 },
+      },
+      {
+        modelId: 'google/gemini-4-argon',
+        efforts: { off: null, low: 'low', medium: 'medium', high: 'high' },
+        capacity: { contextWindow: 1048576, maxTokens: 32768 },
+      },
+      {
+        modelId: 'grok-4.7',
+        efforts: { off: null, low: 'low', medium: 'medium', high: 'high', xhigh: 'xhigh' },
+        capacity: { contextWindow: 500000, maxTokens: 500000 },
+      },
+      {
+        modelId: 'qwen3.8-omni-flash',
+        efforts: { off: null, low: 'low', medium: 'medium', xhigh: 'xhigh' },
+        capacity: { contextWindow: 1000000, maxTokens: 131072 },
+      },
+      {
+        modelId: 'glm-5.3-flashx',
+        efforts: { off: null, low: 'low', high: 'high', max: 'max' },
+        capacity: { contextWindow: 1000000, maxTokens: 131072 },
+      },
+      {
+        modelId: 'mimo-v2.6-pro',
+        efforts: { off: null, high: 'high' },
+        capacity: { contextWindow: 1048576, maxTokens: 131072 },
+      },
+      {
+        modelId: 'mimo-v2.6-flash',
+        efforts: { off: null, high: 'high' },
+        capacity: { contextWindow: 1048576, maxTokens: 131072 },
+      },
+    ] as const
+
+    for (const { modelId, efforts, capacity } of cases) {
+      expect(resolveModelEfforts(modelId)).toEqual(efforts)
+      expect(resolveModelInput(modelId)).toEqual(['text', 'image'])
+      expect(resolveModelCapacity(modelId)).toEqual(capacity)
+    }
+  })
+
+  it('resolves the curated SenseTime and MiniMax models', () => {
+    expect(resolveModelEfforts('sensenova-6.8-flash-lite')).toEqual({
+      off: null,
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+    })
+    expect(resolveModelInput('SenseTime/SenseNova-6.8-Flash-Lite')).toEqual(['text', 'image'])
+    expect(resolveModelCapacity('sensenova-6.8-flash-lite')).toEqual({
+      contextWindow: 262144,
+      maxTokens: 65536,
+    })
+
+    for (const modelId of ['sensenova-u1.5-lite', 'sensenova-u1.5-fast']) {
+      expect(resolveModelEfforts(modelId)).toEqual({ off: null })
+      expect(resolveModelInput(`SenseTime/${modelId}`)).toEqual(['text', 'image'])
+      expect(resolveModelCapacity(modelId)).toBeUndefined()
+    }
+
+    expect(resolveModelEfforts('MiniMax/MiniMax-M3')).toEqual({ off: null, high: 'high' })
+    expect(resolveModelInput('MiniMax-M3')).toEqual(['text', 'image'])
+    expect(resolveModelCapacity('MiniMax-M3')).toEqual({
+      contextWindow: 1000000,
+      maxTokens: 512000,
+    })
+
+    expect(resolveModelEfforts('MiniMax-M3.1-Flash-Preview')).toEqual({
+      off: null,
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+      xhigh: 'xhigh',
+      max: 'max',
+    })
+    expect(resolveModelInput('minimax-m3-1-flash-preview')).toEqual(['text', 'image'])
+    expect(resolveModelCapacity('MiniMax-M3.1-Flash-Preview')).toEqual({
+      contextWindow: 1000000,
+      maxTokens: 512000,
     })
   })
 

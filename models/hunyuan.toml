@@ -1,0 +1,28 @@
+# 腾讯混元系列
+# 模型目录源文件：新增/修改模型时编辑本文件，然后运行 pnpm run generate:models。
+# pricing 和 reasoningEfforts 中的 null 通过省略字段表示；off 档位由生成器自动加入。
+
+family = "hunyuan"
+description = "腾讯混元系列"
+
+[[models]]
+model = "hy3"
+aliases = []
+input = [ "text" ]
+contextWindow = 262144
+maxOutputTokens = 262144
+
+[models.pricing]
+currency = "USD"
+unit = "per_million_tokens"
+input = 0.066
+output = 0.26
+cacheRead = 0.029
+
+[models.reasoningEfforts]
+low = "low"
+high = "high"
+
+[models.sources]
+capabilities = "https://models.dev/api.json"
+pricing = "https://cloud.tencent.com/document/product/1729"
