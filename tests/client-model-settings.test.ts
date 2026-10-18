@@ -1,7 +1,7 @@
 /** Client projection and revision-fenced save-plan tests. */
 
 import { describe, expect, it } from 'vitest'
-import type { ReasoningNamespaceDocument } from '../src/remote-contract'
+import type { ReasoningNamespaceDocument } from '../src/settings-contract'
 import {
   buildReasoningSavePlan,
   collectReasoningSettings,

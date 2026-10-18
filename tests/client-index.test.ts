@@ -8,8 +8,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: () => null,
-  IconCheckOutline16: () => null,
-  IconChevronDownOutline14: () => null,
+  IconCheckOutlineRegular: () => null,
+  IconChevronDownOutlineRegular: () => null,
 }))
 import {
   apply,
@@ -21,6 +21,22 @@ import { zh } from '../src/client/locales'
 
 const { renderToStaticMarkup } = createRequire(import.meta.url)('react-dom/server') as {
   renderToStaticMarkup: (node: ReactNode) => string
+}
+
+function form(value: unknown, user: unknown = value) {
+  return {
+    getSnapshot: () => ({
+      status: 'ready' as const,
+      value,
+      user,
+      base: undefined,
+      revision: 1,
+      writable: true,
+      mode: 'host' as const,
+    }),
+    subscribe: () => () => {},
+    mutate: () => Promise.resolve(true),
+  }
 }
 
 describe('reasoning settings client plugin', () => {
@@ -64,40 +80,25 @@ describe('reasoning settings client plugin', () => {
     expect(markup).toContain(zh.availableEfforts)
   })
 
-  it('unmounts its Remote contribution when dependent setup fails', async () => {
-    const unmountRemote = vi.fn(() => Promise.resolve())
-    const ctx = {
-      remote: { $mount: () => Promise.resolve(unmountRemote) },
-      plugin: () => Promise.reject(new Error('client setup failed')),
-    }
-
-    await expect(apply(ctx as never)).rejects.toThrow('client setup failed')
-    expect(unmountRemote).toHaveBeenCalledOnce()
-  })
-
-  it('disposes its dependent client scope and Remote contribution', async () => {
-    const disposeClient = vi.fn(() => Promise.resolve())
-    const disposeRemote = vi.fn(() => Promise.resolve())
-    const ctx = {
-      remote: { $mount: () => Promise.resolve(disposeRemote) },
-      plugin: () => Promise.resolve({ dispose: disposeClient }),
-    }
-
-    const cleanup = await apply(ctx as never)
-    await cleanup()
-    expect(disposeClient).toHaveBeenCalledOnce()
-    expect(disposeRemote).toHaveBeenCalledOnce()
-  })
-
-  it('registers one localized independent settings section', async () => {
+  it('registers one localized settings section and the composer control', async () => {
     const ctx = new Context()
     const entries: Array<{ options: Record<string, any>; component: unknown; inject: unknown }> = []
-    const unmountRemote = vi.fn(() => Promise.resolve())
-    const describeSettings = vi.fn(() => Promise.resolve({ ok: true as const, value: { writable: true, namespaces: [] } }))
+    const forms = new Map<string, ReturnType<typeof form>>([
+      ['llm-pi-ai', form({}, { providers: { alpha: { models: [{ id: 'gpt-5.4' }] } } })],
+      ['providers-reasoning', form({ models: {}, defaults: {}, legacyDefaultsMigrated: true })],
+      ['agent-default-model', form({ provider: 'alpha', model: 'gpt-5.4' })],
+    ])
+    const configForms = {
+      get: (id: string) => forms.get(id)!,
+      whileServed: (_namespaces: readonly string[], register: (served: ReadonlySet<string>) => () => void) => {
+        return register(new Set(forms.keys()))
+      },
+    }
     const slots = {
       inject: (_name: string, register: () => () => void) => {
         const dispose = register()
         ctx.effect(() => dispose, 'test slots.inject')
+        return dispose
       },
       register: (options: Record<string, any>, component: unknown) => {
         const entry = { options, component, inject: options.inject }
@@ -107,8 +108,8 @@ describe('reasoning settings client plugin', () => {
           if (index >= 0) entries.splice(index, 1)
         }
       },
-      entries: () => entries,
     }
+    ctx.provide('configForms', configForms as never)
     ctx.provide('slots', slots as never)
     ctx.provide('modelDirectories', { directoryFor: vi.fn() } as never)
     ctx.provide('sessions', { subagentAddress: vi.fn(() => undefined) } as never)
@@ -116,17 +117,6 @@ describe('reasoning settings client plugin', () => {
       register: () => () => {},
       bind: () => (key: keyof typeof zh) => zh[key],
     } as never)
-    ctx.provide('connection', { api: {} } as never)
-    const remoteNamespace = {
-      describe: describeSettings,
-      mutate: () => Promise.resolve({ ok: true, value: { saved: true } }),
-    }
-    ctx.provide('remote', {
-      $mount: () => Promise.resolve(unmountRemote),
-      $on: () => () => {},
-      providersReasoning: remoteNamespace,
-    } as never)
-    ctx.provide('remote.providersReasoning', remoteNamespace as never)
 
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -141,10 +131,8 @@ describe('reasoning settings client plugin', () => {
     const injected = settings.inject as unknown as () => { controller: unknown; t: (key: keyof typeof zh) => string }
     expect(injected().t('save')).toBe('保存更改')
     expect(injected().controller).toBeDefined()
-    expect(describeSettings).not.toHaveBeenCalled()
 
     await fiber.dispose()
-    expect(unmountRemote).toHaveBeenCalledOnce()
     await ctx.fiber.dispose()
     expect(entries).toHaveLength(0)
   })

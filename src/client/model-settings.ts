@@ -2,7 +2,7 @@
 
 import type { ReasoningEfforts } from '../config.js'
 import type { ReasoningCapability } from '../plugin-settings.js'
-import type { ReasoningNamespaceDocument, ReasoningPathOp } from '../remote-contract.js'
+import type { ReasoningNamespaceDocument, ReasoningPathOp } from '../settings-contract.js'
 import {
   AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID,
   PI_AI_SETTINGS_NAMESPACE_ID,

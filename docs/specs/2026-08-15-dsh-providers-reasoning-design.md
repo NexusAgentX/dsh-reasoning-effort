@@ -1,7 +1,7 @@
 # dsh-reasoning-effort 设计文档
 
 日期：2026-08-15
-状态：已实现
+状态：已实现（2026-10 升级至 DSH 0.2.0-rc.2）
 
 ## 1. 目标
 
@@ -14,13 +14,13 @@
 
 ## 2. 状态所有权
 
-两类状态都由插件 namespace 持有：
+两类状态都由插件 entry 的 Config 持有：
 
 - `providers-reasoning.models.<provider>.<model>`：插件拥有的显式能力覆盖，值为 `false` 或 effort -> wire 映射；
 - `providers-reasoning.defaults.<provider>.<model>`：插件拥有的精确路由默认 effort。
 - `providers-reasoning.legacyDefaultsMigrated`：旧默认值的一次性迁移标记；标记后不再读取旧 map 作为默认事实源。
 
-`llm-pi-ai.providers.*.models[*].reasoningEfforts` 是 Adapter 消费的投影，不是设置页面的事实源。`models/*.toml` 是包内只读基础目录，永不写回。
+这三项均为 DSH 0.2 的 `Volatile` 配置字段，设置页通过共享 `ctx.configForms` 读取并原子写入。`llm-pi-ai.providers.*.models[*].reasoningEfforts` 是 Adapter 消费的投影，不是设置页面的事实源。`models/*.toml` 是包内只读基础目录，永不写回。
 
 ## 3. Plugin-only 扩展点
 
@@ -28,7 +28,7 @@
 
 1. Host 通过 `{ global: true, prepend: true }` 的 `agent/request` waterfall 监听器，在下游会话选择完成后读取最终 route；
 2. 最终请求已有 effort 时原样保留；缺失时才注入仍在该 route 有效能力 map 中的插件默认值；
-3. Client 通过插件自有 Typert Remote 读写设置，不依赖 Web ApiProxy 的静态 Settings allowlist；
+3. Client 通过 DSH `ctx.configForms` 读写同一批 volatile 配置，不自定义第二套设置传输；
 4. 不注册或替换 `conversation.input.model`，composer 完全由 Harness 原生组件与选择流程持有。
 
 旧顶层 `agent-default-model.reasoningEffort` 只作为当前顶层 provider/model 的迁移输入。插件启动时把有效旧值及早期实现遗留的 `reasoningDefaults` 与持久化迁移标记原子写入自己的 namespace；标记后不再回读旧字段，设置页只在当前 route 变更时兼容投影顶层字段。
@@ -42,11 +42,11 @@
   > Provider 默认行为
 ```
 
-设置页更新 exact-route 默认值，但不静默改写活动会话。Harness 原生 composer 的选择只属于当前会话，不通过插件 Remote 写回 exact route。
+设置页更新 exact-route 默认值，但不静默改写活动会话。Harness 原生 composer 的选择只属于当前会话，不通过插件配置写回 exact route。
 
 ## 4. Host 插件
 
-Host 注册插件 namespace，并监听它与 `llm-pi-ai` 的 settings 更新：
+Host 声明插件 Config 的 volatile 字段，并监听 `settings/document-updated` 与 `loader/volatile-update`：
 
 1. 遍历 `llm-pi-ai` raw user 层的 `providers.*.models`；
 2. exact-route 插件覆盖存在时，显式投影该值；
@@ -58,16 +58,16 @@ Loader `config.efforts` 仍可统一替换目录命中模型的自动补齐值�
 
 ## 5. Client 页面
 
-Client bundle 通过 `settings.section` 注册独立页面，数据源为插件 Remote 返回的一次脱敏 Host `settings.describe()` 投影：
+Client bundle 通过 `settings.section` 注册独立页面，数据源为 DSH 共享的 `ConfigForm` 快照（`llm-pi-ai`、`providers-reasoning`、`agent-default-model`）：
 
-- 只枚举 `llm-pi-ai` descriptor 的 raw `user.providers.*.models`；
+- 只枚举 `llm-pi-ai` form 的 raw `user.providers.*.models`；
 - 不枚举 composed value、内置 catalog、`modelOverrides` 或 session model directory；
 - 同名模型按 provider 分组并保持独立；
 - 支持 reasoning 开关、七档复选、非 off wire 值编辑和默认等级选择；
 - `off` 与未配置不同：前者是明确选择，后者保留 Provider 默认行为；
 - 至少需要一个非 off 等级，默认值必须属于当前可用等级。
 
-页面保留本地草稿。能力和默认值在一次插件 namespace mutation 中写入；当前 route 的顶层兼容投影使用自己的 revision。外部 invalidation 会刷新已加载页面，但不会覆盖正在编辑的草稿。部分写入失败后刷新 revision，重试只提交尚未完成的投影。
+页面保留本地草稿。能力和默认值分别通过两个 ConfigForm 的 revision-fenced `mutate()` 写入；当前 route 的顶层兼容投影使用自己的 revision。Form 快照更新会刷新页面，但不会覆盖正在编辑的草稿。部分写入失败后刷新 revision，重试只提交尚未完成的投影。
 
 ## 6. 构建与测试
 
@@ -75,7 +75,7 @@ Client bundle 通过 `settings.section` 注册独立页面，数据源为插件 
 - `lib/client.js`：浏览器 CJS closure factory，通过 `window.__ModuleLoader__.load()` 注册；
 - `models/*.toml`：按家族维护的只读目录；构建时生成 `src/model-catalog.generated.json` 并打入 Host/Client bundle。
 
-验证覆盖：目录匹配、自动补齐不覆盖、exact-route 强制覆盖与幂等、namespace 语义校验、只显示用户 models、跨 provider 隔离、默认值 save ops、一次性迁移及清除后不回灌、`off`/失效值、Remote strict descriptor、Client 不接管 composer、Host `agent/request` 注入、类型检查、双端构建和 dry-run 打包。
+验证覆盖：目录匹配、自动补齐不覆盖、exact-route 强制覆盖与幂等、配置语义校验、只显示用户 models、跨 provider 隔离、默认值 save ops、一次性迁移及清除后不回灌、`off`/失效值、ConfigForm revision-fenced 写入、Client 不接管 composer、Host `agent/request` 注入、类型检查、双端构建和 dry-run 打包。
 
 ## 7. 非目标
 

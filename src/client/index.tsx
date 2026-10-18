@@ -7,18 +7,18 @@ import {
   useSyncExternalStore,
 } from 'react'
 import type { ReactNode } from 'react'
-import type { Fiber } from '@deepseek-ai/cordis'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context } from '@deepseek-ai/cordis'
 import {
   Button,
-  IconCheckOutline16,
-  IconChevronDownOutline14,
+  IconCheckOutlineRegular,
+  IconChevronDownOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-// Type-only imports install the settings and locale context/slot merges.
+// Type-only imports install the settings, session, and slot context merges.
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type {} from '@deepseek-ai/dsh-api-remotes/client'
-import type { SessionRuntime } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { ModelDirectoryResolver } from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import { ComposerModelSelect } from './composer.js'
@@ -29,8 +29,6 @@ import {
   PLUGIN_SETTINGS_NAMESPACE_ID,
   REASONING_LEVELS,
 } from '../constants.js'
-import { TYPERT_REMOTE } from '../remote-contract.js'
-import type { ReasoningClientRemote } from '../remote-contract.js'
 import { ReasoningSettingsController } from './controller.js'
 import type { ReasoningSettingsState } from './controller.js'
 import {
@@ -59,7 +57,7 @@ const LOCALE_NAMESPACE = 'settings.providers-reasoning'
 const STYLE_ID = 'dsh-reasoning-effort/settings'
 
 /** Services required by the browser half. */
-export const inject = ['slots', 'locale', 'connection', 'remote', 'modelDirectories', 'sessions']
+export const inject = ['slots', 'locale', 'configForms', 'modelDirectories', 'sessions']
 
 export interface ReasoningSettingsInjected {
   controller: ReasoningSettingsController
@@ -249,7 +247,7 @@ function Loaded({ controller, t }: ReasoningSettingsInjected): ReactNode {
                           {model.modelName === model.model ? null : <span className="dpr-model-id">{model.model}</span>}
                         </span>
                         <span className="dpr-model-chevron" aria-hidden="true">
-                          <IconChevronDownOutline14 size={14} />
+                          <IconChevronDownOutlineRegular size={14} />
                         </span>
                       </button>
                       <label className="dpr-switch-label">
@@ -365,7 +363,7 @@ function Loaded({ controller, t }: ReasoningSettingsInjected): ReactNode {
           <Button variant="outline" disabled={!editing || state.saving} onClick={reset}>{t('reset')}</Button>
           <Button
             variant="outline"
-            icon={<IconCheckOutline16 size={14} />}
+            icon={<IconCheckOutlineRegular size={14} />}
             disabled={!snapshot.writable || state.saving || !hasChanges || plan.errors.length > 0}
             onClick={save}
           >
@@ -377,38 +375,19 @@ function Loaded({ controller, t }: ReasoningSettingsInjected): ReactNode {
   )
 }
 
-/** Register the private Remote and settings page. */
-export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
-  const remote = ctx.remote as ReasoningClientRemote
-  const disposeRemote = await remote.$mount(TYPERT_REMOTE)
-  let clientFiber: Fiber | undefined
-  try {
-    clientFiber = await ctx.plugin({
-      name: 'dsh-reasoning-effort:client',
-      inject: ['remote.providersReasoning', 'modelDirectories', 'sessions'],
-      apply: (scope: ClientContext) => {
-        installClient(scope, (scope.remote as ReasoningClientRemote).providersReasoning)
-      },
-    })
-  } catch (error) {
-    await disposeRemote()
-    throw error
-  }
-  return async () => {
-    try {
-      await clientFiber?.dispose()
-    } finally {
-      await disposeRemote()
-    }
-  }
-}
-
-function installClient(ctx: ClientContext, remoteNamespace: ReasoningClientRemote['providersReasoning']): void {
-  ctx.effect(() => ctx.locale.register(LOCALE_NAMESPACE, { zh, en }), 'providers-reasoning: dictionaries')
-  const controller = new ReasoningSettingsController(remoteNamespace)
+/** Register the live ConfigForm-backed settings page and composer control. */
+export function apply(ctx: Context): void {
+  const piAiForm = ctx.configForms.get(PI_AI_SETTINGS_NAMESPACE_ID)
+  const pluginForm = ctx.configForms.get(PLUGIN_SETTINGS_NAMESPACE_ID)
+  const agentDefaultForm = ctx.configForms.get(AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID)
+  const controller = new ReasoningSettingsController({
+    piAi: piAiForm,
+    plugin: pluginForm,
+    agentDefault: agentDefaultForm,
+  })
   const t = ctx.locale.bind(LOCALE_NAMESPACE) as ReasoningSettingsInjected['t']
-  const sessions = ctx.get('sessions') as unknown as SessionRuntime
 
+  ctx.effect(() => ctx.locale.register(LOCALE_NAMESPACE, { zh, en }), 'providers-reasoning: dictionaries')
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {}
     const existing = document.querySelector<HTMLStyleElement>(`style[data-plugin-css="${STYLE_ID}"]`)
@@ -420,44 +399,34 @@ function installClient(ctx: ClientContext, remoteNamespace: ReasoningClientRemot
     document.head.appendChild(tag)
     return () => { tag.remove() }
   }, 'providers-reasoning: styles')
+  ctx.effect(() => () => controller.dispose(), 'providers-reasoning: settings form subscriptions')
 
-  ctx.effect(() => {
-    const refresh = (): void => {
-      if (controller.loaded()) void controller.load()
-    }
-    const settings = new Set([
-      PI_AI_SETTINGS_NAMESPACE_ID,
-      PLUGIN_SETTINGS_NAMESPACE_ID,
-      AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID,
-    ])
-    const disposers = [
-      ctx.remote.$on('settings/document-updated', (namespace) => {
-        if (settings.has(namespace)) refresh()
-      }),
-      ctx.on('connection/reset', refresh),
-    ]
-    return () => { for (const dispose of disposers) dispose() }
-  }, 'providers-reasoning: invalidations')
-
-  ctx.slots.inject('conversation.input.model', () => {
+  const sessions = ctx.get('sessions') as unknown as {
+    subagentAddress(sessionId: string): unknown
+  }
+  ctx.effect(() => ctx.slots.inject('conversation.input.model', () => {
     const modelDirectories = ctx.modelDirectories as ModelDirectoryResolver
     return ctx.slots.register({
       name: 'conversation.input.model',
       priority: -100,
       inject: (sessionId) => ({
         available: sessions.subagentAddress(sessionId) === undefined,
-        directory: modelDirectories.directoryFor(sessionId),
+        directory: modelDirectories.directoryFor(sessionId as SessionId),
         settings: controller,
         t,
       }),
     }, ComposerModelSelect)
-  })
+  }), 'providers-reasoning: composer model control')
 
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
+  ctx.effect(() => ctx.configForms.whileServed([
+    PI_AI_SETTINGS_NAMESPACE_ID,
+    PLUGIN_SETTINGS_NAMESPACE_ID,
+    AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID,
+  ], () => ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'providers-reasoning',
     order: 15,
     label: () => t('nav'),
     inject: (): ReasoningSettingsInjected => ({ controller, t }),
-  }, ReasoningSettingsSection))
+  }, ReasoningSettingsSection))), 'providers-reasoning: settings page')
 }

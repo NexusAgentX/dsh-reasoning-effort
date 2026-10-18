@@ -21,10 +21,10 @@ import { modelRouteKey } from '../src/client/model-settings'
 import { zh } from '../src/client/locales'
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
-  IconCheckOutline16: () => null,
-  IconChevronDownOutline14: () => null,
-  IconChevronLeftOutline14: () => null,
-  IconChevronRightOutline14: () => null,
+  IconCheckOutlineRegular: () => null,
+  IconChevronDownOutlineRegular: () => null,
+  IconChevronLeftOutlineRegular: () => null,
+  IconChevronRightOutlineRegular: () => null,
 }))
 
 const { renderToStaticMarkup } = createRequire(import.meta.url)('react-dom/server') as {
@@ -59,6 +59,7 @@ function directoryState(
     }],
     failures: [],
     status: 'ready',
+    pending: null,
     error: null,
   }
 }

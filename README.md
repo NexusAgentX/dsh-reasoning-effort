@@ -1,11 +1,14 @@
 # dsh-reasoning-effort
 
-dsh 思考等级与视觉能力解放插件
+dsh 0.2 思考等级与视觉能力解放插件
+
+兼容 DSH `0.2.0-rc.2`。
 
 1. 按家族手动维护 `models/*.toml`，为常见的模型自动补全 `reasoning_effort`
 2. 为第三方模型自动补全正确的上下文窗口与最大输出长度（避免回退到适配器保守的 262k）
 3. 解锁第三方模型原生的视觉能力
 4. 在 Composer 中加入鲸鱼娘推理强度滑块
+5. 通过 DSH 原生 ConfigForm 实时读写插件配置
 
 ![composer 滑块](assets/composer.png)
 

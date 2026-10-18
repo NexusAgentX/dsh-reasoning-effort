@@ -19,10 +19,10 @@ import type {
   ModelSelection,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import {
-  IconCheckOutline16,
-  IconChevronDownOutline14,
-  IconChevronLeftOutline14,
-  IconChevronRightOutline14,
+  IconCheckOutlineRegular,
+  IconChevronDownOutlineRegular,
+  IconChevronLeftOutlineRegular,
+  IconChevronRightOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   ModelDirectory,
@@ -594,7 +594,7 @@ function AvailableComposerModelSelect({
     [directory],
   )
   const getDirectorySnapshot = useCallback(() => directory.store.getSnapshot(), [directory])
-  const directoryState = useSyncExternalStore(
+  const directoryState: ModelDirectoryState = useSyncExternalStore(
     subscribeDirectory,
     getDirectorySnapshot,
     getDirectorySnapshot,
@@ -708,7 +708,7 @@ function AvailableComposerModelSelect({
         {effortName === undefined ? null : (
           <span className="dpr-composer-trigger-effort">{effortName}</span>
         )}
-        <IconChevronDownOutline14
+        <IconChevronDownOutlineRegular
           size={14}
           className={`dpr-composer-trigger-chevron${open ? ' is-open' : ''}`}
         />
@@ -729,7 +729,7 @@ function AvailableComposerModelSelect({
                 className="dpr-composer-back"
                 onClick={() => { setModelsOpen(false) }}
               >
-                <IconChevronLeftOutline14 size={14} />
+                <IconChevronLeftOutlineRegular size={14} />
                 <span>{t('composerBack')}</span>
               </button>
               {directoryState.status === 'loading' && directoryState.groups.length === 0 ? (
@@ -758,7 +758,7 @@ function AvailableComposerModelSelect({
                             )}
                           </span>
                           <span className="dpr-composer-model-check" aria-hidden="true">
-                            {selected ? <IconCheckOutline16 size={16} /> : null}
+                            {selected ? <IconCheckOutlineRegular size={16} /> : null}
                           </span>
                         </button>
                       )
@@ -798,7 +798,7 @@ function AvailableComposerModelSelect({
                 {effortName === undefined ? null : (
                   <span className="dpr-composer-current-effort">{effortName}</span>
                 )}
-                <IconChevronRightOutline14 size={14} aria-hidden="true" />
+                <IconChevronRightOutlineRegular size={14} aria-hidden="true" />
               </button>
             </>
           )}

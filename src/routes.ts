@@ -4,7 +4,7 @@ import { resolveConfig } from './config.js'
 import type { ReasoningEfforts } from './config.js'
 import { resolveModelEfforts } from './model-catalog.js'
 import type { ReasoningCapability, ReasoningPluginSettings } from './plugin-settings.js'
-import type { ReasoningPathOp } from './remote-contract.js'
+import type { ReasoningPathOp } from './settings-contract.js'
 
 type UnknownRecord = Record<string, unknown>
 

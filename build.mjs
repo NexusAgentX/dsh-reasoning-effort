@@ -10,7 +10,7 @@
  * the development sandbox denies.
  */
 import { spawnSync } from 'node:child_process'
-import { globSync, mkdirSync, readFileSync } from 'node:fs'
+import { globSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 
 function esbuildBinary() {
   // Platform-dependent pnpm layout: node_modules/.pnpm/@esbuild+<platform>-<arch>@*/...
@@ -42,6 +42,7 @@ function runTsc() {
   if (result.status !== 0) process.exit(result.status ?? 1)
 }
 
+rmSync('lib', { recursive: true, force: true })
 mkdirSync('lib', { recursive: true })
 runEsbuild([
   'src/index.ts',
@@ -56,9 +57,6 @@ runEsbuild([
 const clientExternals = [
   'react',
   'react/jsx-runtime',
-  '@deepseek-ai/dsh-client-runtime/client',
-  '@deepseek-ai/dsh-client-ui-conversation/client',
-  '@deepseek-ai/dsh-client-ui-model-selection/client',
   '@deepseek-ai/dsh-client-ui-primitives',
 ]
 runEsbuild([

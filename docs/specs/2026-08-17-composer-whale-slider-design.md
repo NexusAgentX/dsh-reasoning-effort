@@ -17,7 +17,7 @@
 
 - 不修改“思考等级”设置页的布局或默认值下拉框。
 - 不让 Composer 的选择写入插件持久默认值。
-- 不修改 Host、Remote、模型能力目录或 `agent/request` 默认值注入逻辑。
+- 不修改 Host、配置表单传输、模型能力目录或 `agent/request` 默认值注入逻辑。
 - 不增加设置页开关；插件加载后 Composer 增强默认生效。
 - 不恢复 `temp` 的自定义 Provider 档位指引面板。
 
@@ -25,7 +25,7 @@
 
 新增独立的 Composer 模块，避免把会话交互塞入现有设置页模块：
 
-1. `installClient()` 保持现有 Remote 与设置页注册，复用同一个 `ReasoningSettingsController`，并额外取得 `modelDirectories`。
+1. Client 入口保持现有 ConfigForm 设置页注册，复用同一个 `ReasoningSettingsController`，并额外取得 `modelDirectories`。
 2. 通过 `ctx.slots.inject` 在 `conversation.input.model` 注册 `priority: -100` 的单一 occupant，覆盖原生模型入口但不接管整个 Composer；scope 卸载时由 slot disposer 自动清理。
 3. slot 的 `sessionId` 用于取得 `modelDirectories.directoryFor(sessionId)`；不可用或 addressed-subagent 会话仍注入 `available: false`，由组件返回 `null`，并始终遵守 slot 的 `locked` 属性。
 4. 组件通过 `useSyncExternalStore` 分别订阅目录和设置 controller 的稳定 snapshot；挂载时非阻塞调用 `controller.load()`，菜单打开时刷新目录，设置加载中或失败立即使用 Adapter 默认值，成功后再刷新精确路由默认值。

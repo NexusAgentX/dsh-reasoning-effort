@@ -1,27 +1,10 @@
 /**
  * dsh-reasoning-effort — Host-side capability catalog and projection.
  *
- * The web composer's Effort row renders only when the owning LLM adapter
- * reports `reasoning` metadata for the selected model. `llm-pi-ai` derives
- * that metadata from each model entry's `reasoningEfforts` declaration; the
- * web "custom provider" card deliberately does not write it, so hand-declared
- * third-party models show no reasoning selector. This plugin closes the gap
- * the platform seams allow: it watches the `llm-pi-ai` settings user layer
- * and writes catalog-derived `reasoningEfforts`, `input`, and capacity
- * declarations only onto supported model entries that lack the corresponding
- * fields. Capacity backfill is what keeps a third-party DeepSeek route from
- * silently falling back to the adapter's conservative 262,144 context window.
- *
- * Contract:
- * - missing `reasoningEfforts` on a catalog-matched model → backfill its map;
- * - missing `input` on a catalog-matched model → backfill its modalities;
- * - missing `contextWindow`/`maxTokens` on a catalog-matched model → backfill
- *   the catalog pair (each half independently, so user-sized values survive);
- * - any existing value (map or `false`) → untouched;
- * - composition base → untouched;
- * - writes go through `ctx.settings.mutate` with `expectedRevision`, so a
- *   concurrent web edit is a conflict to retry, never a silent overwrite;
- * - after its own write the watcher computes zero ops, so the loop settles.
+ * The plugin watches the DSH settings document for `llm-pi-ai` and fills
+ * catalog-derived capabilities only where a user model entry left them
+ * undeclared. Its own exact-route overrides/defaults are volatile fields on
+ * this plugin entry, so the settings UI can update them live.
  *
  * @module dsh-reasoning-effort
  */
@@ -29,15 +12,15 @@
 import type { Context } from '@deepseek-ai/cordis'
 // Type-only: installs the agent/request event contract on Cordis Events.
 import type {} from '@deepseek-ai/dsh-agent'
-import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
-// Type-only: pulls the `ctx.settings` merge and the settings event vocabulary.
+// Type-only: installs the settings event vocabulary on Cordis Events.
 import type {} from '@deepseek-ai/dsh-settings'
-// Type-only: extends ctx.typert with generated-contribution registration.
-import type {} from '@deepseek-ai/dsh-typert-registry'
-import { installSettingsSection, settingsNamespace, SettingsConflictError } from '@deepseek-ai/dsh-settings'
+// Type-only: installs loader/volatile-update on Cordis Events.
+import type {} from '@deepseek-ai/cordis-plugin-loader'
+import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import { SettingsConflictError } from '@deepseek-ai/dsh-settings'
 import type { SettingsDescriptor } from '@deepseek-ai/dsh-settings'
-import { resolveConfig } from './config.js'
-import type { ResolvedConfig } from './config.js'
+import { resolveRuntimeConfig } from './config.js'
+import type { ResolvedRuntimeConfig } from './config.js'
 import {
   AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID,
   PI_AI_SETTINGS_NAMESPACE_ID,
@@ -45,14 +28,6 @@ import {
 } from './constants.js'
 import { computeEnrichmentOps } from './enrich.js'
 import { resolveModelCapacity, resolveModelEfforts, resolveModelInput } from './model-catalog.js'
-import {
-  emptyReasoningPluginSettings,
-  ReasoningPluginSettingsSchema,
-  validateReasoningPluginSettings,
-} from './plugin-settings.js'
-import type { ReasoningPluginSettings } from './plugin-settings.js'
-import { ReasoningEffortRemoteService } from './remote.js'
-import { TYPERT_HOST } from './remote-contract.js'
 import {
   computeLegacyDefaultOps,
   effectiveRouteCapability,
@@ -64,7 +39,7 @@ import {
 export const name = 'dsh-reasoning-effort'
 
 /** The plugin only acts where the settings seam exists. */
-export const inject = ['settings', 'typert']
+export const inject = ['settings']
 
 /** Cordis Loader schema. */
 export { Config, DEFAULT_EFFORTS, REASONING_LEVELS } from './config.js'
@@ -75,53 +50,42 @@ export type {
 } from './config.js'
 export type { ReasoningCapability, ReasoningPluginSettings } from './plugin-settings.js'
 
-/** The namespace `@deepseek-ai/dsh-llm-pi-ai` owns. */
-const PI_AI_NS = settingsNamespace(PI_AI_SETTINGS_NAMESPACE_ID)
-/** This plugin's exact-route capability overrides. */
-export const SETTINGS_NAMESPACE = settingsNamespace(PLUGIN_SETTINGS_NAMESPACE_ID)
-const AGENT_DEFAULT_NS = settingsNamespace(AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID)
+/** Settings entry ids shared with the profile composition. */
+export const SETTINGS_NAMESPACE = PLUGIN_SETTINGS_NAMESPACE_ID
+
+function findDescriptor(descriptors: readonly SettingsDescriptor[], ns: string): SettingsDescriptor | undefined {
+  return descriptors.find(descriptor => String(descriptor.ns) === ns)
+}
 
 /**
- * Plugin body. Everything happens inside one effect so HMR / disposal removes
- * the listeners and pending microtask flag with the fiber.
+ * Plugin body. Volatile Config references stay live for the fiber lifetime;
+ * every request and settings pass reads their current snapshots.
  * @param ctx - host root context.
- * @param config - loader-validated row config (defaults already applied).
+ * @param config - loader-validated row config.
  */
 export function apply(ctx: Context, config: unknown): void {
-  const resolved: ResolvedConfig = resolveConfig(config)
+  const runtime: ResolvedRuntimeConfig = resolveRuntimeConfig(config)
   const logger = ctx.logger('dsh-reasoning-effort')
-  const entry = emptyReasoningPluginSettings()
-  let settingsSource: () => ReasoningPluginSettings = () => entry
-  let notifySettingsChange = (): void => {}
-
-  installSettingsSection(ctx, SETTINGS_NAMESPACE, ReasoningPluginSettingsSchema, entry, {
-    setSource: (current) => { settingsSource = current },
-    onChange: () => { notifySettingsChange() },
-    validate: validateReasoningPluginSettings,
-  })
-  new ReasoningEffortRemoteService(ctx, ctx.settings)
-  ctx.effect(
-    () => ctx.typert.register(TYPERT_HOST),
-    'dsh-reasoning-effort: strict Remote contribution',
-  )
+  const ownEntry = (ctx.fiber as unknown as { entry?: { options?: { id?: string } } }).entry
+  const pluginNs = ownEntry?.options?.id ?? PLUGIN_SETTINGS_NAMESPACE_ID
 
   ctx.effect(() => ctx.on('agent/request', async (_payload, next) => {
     const call = await next()
     if (call.reasoningEffort !== undefined || call.provider === undefined || call.model === undefined) return call
     try {
       const descriptors = ctx.settings.describe({ redactSecrets: true })
-      const piAi = descriptors.find(descriptor => descriptor.ns === PI_AI_NS)
+      const piAi = findDescriptor(descriptors, PI_AI_SETTINGS_NAMESPACE_ID)
       if (piAi === undefined) return call
-      const current = settingsSource()
-      let effort = validRouteDefault(current, piAi.user, call.provider, call.model)
-      if (effort === undefined && !current.legacyDefaultsMigrated) {
-        const legacy = descriptors.find(descriptor => descriptor.ns === AGENT_DEFAULT_NS)?.value
+      const settings = runtime.settings()
+      let effort = validRouteDefault(settings, piAi.user, call.provider, call.model)
+      if (effort === undefined && !settings.legacyDefaultsMigrated) {
+        const legacy = findDescriptor(descriptors, AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID)?.value
         if (legacy !== null && typeof legacy === 'object' && !Array.isArray(legacy)) {
           const value = legacy as Record<string, unknown>
           const sameRoute = nonEmptyString(value.provider) === call.provider
             && nonEmptyString(value.model) === call.model
           const candidate = sameRoute ? nonEmptyString(value.reasoningEffort) : undefined
-          const capability = effectiveRouteCapability(current, piAi.user, call.provider, call.model)
+          const capability = effectiveRouteCapability(settings, piAi.user, call.provider, call.model)
           if (candidate !== undefined && capability !== undefined && capability !== false
             && Object.hasOwn(capability, candidate)) effort = candidate
         }
@@ -152,24 +116,22 @@ export function apply(ctx: Context, config: unknown): void {
         logger.warn(error)
         return
       }
-      const descriptor = descriptors.find(entry => entry.ns === PI_AI_NS)
-      // Not registered (llm-pi-ai absent or still loading). A later document
-      // change or a hot-apply triggers another pass; the patch layer runs
-      // after the bundles, so this is normally already present at apply time.
+      const descriptor = findDescriptor(descriptors, PI_AI_SETTINGS_NAMESPACE_ID)
       if (descriptor === undefined) return
 
-      const pluginDescriptor = descriptors.find(entry => entry.ns === SETTINGS_NAMESPACE)
-      const agentDefault = descriptors.find(entry => entry.ns === AGENT_DEFAULT_NS)
+      const pluginDescriptor = findDescriptor(descriptors, pluginNs)
+      const agentDefault = findDescriptor(descriptors, AGENT_DEFAULT_MODEL_SETTINGS_NAMESPACE_ID)
+      const current = runtime.settings()
       if (pluginDescriptor !== undefined && agentDefault !== undefined
-        && !settingsSource().legacyDefaultsMigrated) {
-        const migratedDefaults = computeLegacyDefaultOps(settingsSource(), descriptor.user, agentDefault.value)
+        && !current.legacyDefaultsMigrated) {
+        const migratedDefaults = computeLegacyDefaultOps(current, descriptor.user, agentDefault.value)
         const migrationOps = [
           ...migratedDefaults,
           { op: 'set' as const, path: ['legacyDefaultsMigrated'], value: true },
         ]
         try {
           if (disposed) return
-          await settings.mutate(SETTINGS_NAMESPACE, migrationOps, pluginDescriptor.revision)
+          await settings.mutate(pluginDescriptor.ns, migrationOps, pluginDescriptor.revision)
           if (disposed) return
           logger.info('migrated %s exact-route reasoning defaults into plugin settings', migratedDefaults.length)
           schedule()
@@ -187,9 +149,9 @@ export function apply(ctx: Context, config: unknown): void {
 
       const ops = computeEnrichmentOps(descriptor.user, modelId => {
         const catalogEfforts = resolveModelEfforts(modelId)
-        return catalogEfforts === undefined ? undefined : resolved.efforts ?? catalogEfforts
+        return catalogEfforts === undefined ? undefined : runtime.efforts ?? catalogEfforts
       }, (providerId, modelId) => {
-        return routeCapability(settingsSource(), providerId, modelId)
+        return routeCapability(current, providerId, modelId)
       }, modelId => {
         return resolveModelInput(modelId)
       }, modelId => {
@@ -199,14 +161,11 @@ export function apply(ctx: Context, config: unknown): void {
 
       try {
         if (disposed) return
-        await settings.mutate(PI_AI_NS, ops, descriptor.revision)
+        await settings.mutate(descriptor.ns, ops, descriptor.revision)
         if (disposed) return
         logger.info('backfilled model capabilities on %s model entries', ops.length)
       } catch (error) {
         if (error instanceof SettingsConflictError) {
-          // A web edit landed between describe and mutate. One retry pass is
-          // enough for the normal write-after-write cadence; a still-moving
-          // document is picked up by the events below.
           logger.debug('settings conflict while backfilling; retrying once')
           schedule()
           return
@@ -231,25 +190,16 @@ export function apply(ctx: Context, config: unknown): void {
       })
     }
 
-    const onDocumentUpdated = (ns: string): void => {
-      if (ns === PI_AI_NS || ns === SETTINGS_NAMESPACE || ns === AGENT_DEFAULT_NS) schedule()
-    }
-    const onUpdated = (ns: string): void => {
-      if (ns === PI_AI_NS || ns === SETTINGS_NAMESPACE || ns === AGENT_DEFAULT_NS) schedule()
-    }
-    const offDocument = ctx.on('settings/document-updated', onDocumentUpdated)
-    const offUpdated = ctx.on('settings/updated', onUpdated)
-    notifySettingsChange = schedule
-    // First pass after the fiber settles: covers both the normal boot order
-    // (bundles → profile patch layer) and a hot-apply of this very row.
+    const onChange = (): void => schedule()
+    const offDocument = ctx.on('settings/document-updated', onChange)
+    const offVolatile = ctx.on('loader/volatile-update', onChange)
     schedule()
 
     return async () => {
       disposed = true
       scheduled = false
-      notifySettingsChange = () => {}
       offDocument()
-      offUpdated()
+      offVolatile()
       await running
     }
   }, 'dsh-reasoning-effort: reasoning-effort backfill')
