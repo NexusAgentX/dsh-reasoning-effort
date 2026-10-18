@@ -113,6 +113,8 @@ describe('reasoning settings client plugin', () => {
     ctx.provide('slots', slots as never)
     ctx.provide('modelDirectories', { directoryFor: vi.fn() } as never)
     ctx.provide('sessions', { subagentAddress: vi.fn(() => undefined) } as never)
+    ctx.provide('remote', { session: {} } as never)
+    ctx.provide('remote.session', {} as never)
     ctx.provide('locale', {
       register: () => () => {},
       bind: () => (key: keyof typeof zh) => zh[key],

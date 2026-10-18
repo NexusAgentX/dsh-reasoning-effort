@@ -150,6 +150,17 @@ describe('Composer reasoning effort', () => {
     })
   })
 
+  it('treats a resolved Host failure outcome as a rejection', async () => {
+    const state = directoryState()
+    const directory = {
+      store: { getSnapshot: () => state },
+      load: vi.fn(async () => undefined),
+      select: vi.fn(async () => ({ ok: false, error: { message: 'writer held' } })),
+    } as unknown as ModelDirectory
+
+    await expect(commitDirectoryEffort(directory, 2, 'no efforts')).rejects.toThrow('writer held')
+  })
+
   it('surfaces selection failures for the caller to roll back', async () => {
     const state = directoryState()
     const directory = {

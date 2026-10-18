@@ -69,7 +69,7 @@ export const composerStyles = `
   border: 1px solid var(--dsw-alias-border-inverted, rgba(121,126,145,.2));
   border-radius: 12px;
   color: var(--dsw-alias-label-primary, #15171b);
-  background: var(--dsw-specific-menu, #fff);
+  background: #f8f9fa;
   box-shadow: var(--dsw-shadow-lv3, 0 14px 42px rgba(18,24,42,.18));
   animation: dpr-composer-menu-in 150ms cubic-bezier(.22,1,.36,1);
 }
@@ -406,7 +406,7 @@ export const composerStyles = `
 body[data-ds-dark-theme] .dpr-composer-menu {
   border-color: rgba(136,145,180,.2);
   color: var(--dsw-alias-label-primary, #f2f4f8);
-  background: var(--dsw-specific-menu, #202126);
+  background: #303136;
   box-shadow: 0 18px 46px rgba(0,0,0,.48), 0 3px 12px rgba(0,0,0,.32);
 }
 body[data-ds-dark-theme] .dpr-composer-track {

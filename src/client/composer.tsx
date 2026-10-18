@@ -103,6 +103,7 @@ function positionForEffortIndex(index: number, count: number): number {
   return Math.min(count, Math.max(0, index + 0.5))
 }
 
+
 export interface CommittedEffort {
   index: number
   id: string
@@ -121,11 +122,15 @@ export async function commitDirectoryEffort(
   const next = levels[index]?.id
   if (fresh.current === null || next === undefined) throw new Error(noEffortsMessage)
 
-  await directory.select({
+  // DSH 0.2 resolves with the Host outcome instead of rejecting; surface it.
+  const outcome = await directory.select({
     provider: fresh.current.provider,
     model: fresh.current.model,
     reasoningEffort: next,
-  })
+  }) as { ok?: boolean; error?: { message?: string } } | undefined
+  if (outcome !== undefined && outcome.ok === false) {
+    throw new Error(outcome.error?.message ?? noEffortsMessage)
+  }
 
   const accepted = effortIndex(levels, directory.store.getSnapshot().current?.reasoningEffort)
   const settled = accepted >= 0 ? accepted : index
@@ -410,8 +415,9 @@ function EffortSlider({
     setCommitting(true)
     setLocalError(null)
 
-    const position = clampPosition(raw, levels.length)
-    const targetIndex = effortIntervalIndex(position, levels.length)
+    // Snap the release point to the chosen interval center so the thumb settles.
+    const targetIndex = effortIntervalIndex(raw, levels.length)
+    const position = positionForEffortIndex(targetIndex, levels.length)
     const targetId = levels[targetIndex]?.id
     pendingPositionRef.current = targetId === undefined ? null : { id: targetId, position }
     previewRef.current = position
@@ -549,7 +555,8 @@ function EffortSlider({
           max={count}
           step="0.01"
           value={preview}
-          disabled={locked || busy}
+          disabled={locked}
+          aria-busy={busy}
           aria-label={t('composerEffort')}
           aria-valuetext={effortName}
           onChange={event => { showPreview(Number(event.currentTarget.value)) }}

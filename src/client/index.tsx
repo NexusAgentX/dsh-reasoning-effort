@@ -57,7 +57,11 @@ const LOCALE_NAMESPACE = 'settings.providers-reasoning'
 const STYLE_ID = 'dsh-reasoning-effort/settings'
 
 /** Services required by the browser half. */
-export const inject = ['slots', 'locale', 'configForms', 'modelDirectories', 'sessions']
+// `remote`/`remote.session` keep the lazily mounted ModelDirectoryResolver usable
+// from this plugin's contexts (DSH 0.2 resolves services through the caller).
+export const inject = [
+  'slots', 'locale', 'configForms', 'modelDirectories', 'sessions', 'remote', 'remote.session',
+]
 
 export interface ReasoningSettingsInjected {
   controller: ReasoningSettingsController

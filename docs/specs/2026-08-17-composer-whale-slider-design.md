@@ -9,7 +9,7 @@
 - 注册一个独立的 Composer 模型入口，显示当前模型与当前会话的推理强度。
 - 弹层根视图显示鲸鱼娘滑块；模型列表仍按 Provider 分组。
 - 档位完全来自当前模型的 `reasoning.efforts`，不硬编码三档。
- - 每个档位占据一个等宽区间，拖动和释放都保持连续位置；提交时按所在区间映射到合法档位并通过 `ModelDirectory.select()` 提交。
+ - 每个档位占据一个等宽区间，拖动时线性跟手，释放后吸附到所选档位中心；提交时按所在区间映射到合法档位并通过 `ModelDirectory.select()` 提交。
 - 保留深浅主题、左侧辐射、拖尾、最高档呼吸、拖动加速和 `prefers-reduced-motion` 降级。
 - 复用 DSH UI primitives 的图标，并扩展插件自己的 locale，不依赖 DSH 私有的 `model` locale namespace，也不保留 `temp` 中的硬编码中文控件文案。
 
