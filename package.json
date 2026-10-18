@@ -1,6 +1,6 @@
 {
   "name": "dsh-reasoning-effort",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "DSH 0.2 plugin with curated reasoning capabilities and per-provider/model effort defaults for llm-pi-ai models.",
   "type": "module",
   "main": "lib/index.js",

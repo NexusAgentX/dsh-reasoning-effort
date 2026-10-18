@@ -78,15 +78,63 @@ pnpm test
 安装生命周期中额外调用 `node` 或重新构建；修改源码后请运行 `pnpm run build`
 并一并提交 `lib/`。npm 发布前由 `prepublishOnly` 自动重新构建。
 
-## 安装（本地源码）
+## 安装
+
+从 GitHub 安装时不要直接在任意目录执行 `pnpm add`：那样只会安装 npm 包，
+不会把插件 bundle 加入 DSH profile。应使用 DSH 的插件管理器：
+
+```bash
+dsh plugin --profile web add github:NexusAgentX/dsh-reasoning-effort
+```
+
+也可以使用完整 URL：
+
+```bash
+dsh plugin --profile web add https://github.com/NexusAgentX/dsh-reasoning-effort
+```
+
+安装完成后重启 DSH，或在启用了 HMR 的 Web profile 中等待自动重载。
+
+本地源码安装：
 
 ```bash
 cd /absolute/path/to/dsh-reasoning-effort
 pnpm install && pnpm run build
 
-# 链接进 web profile。包内 cordis.patch.yml（package.json 的 dsh.bundle 声明）
-# 会自动把 providers-reasoning 插件行挂进 profile 层栈，无需手写 patch。
+# 包内 cordis.patch.yml（package.json 的 dsh.bundle 声明）会自动把
+# providers-reasoning 插件行挂进 profile 层栈，无需手写 patch。
 dsh plugin --profile web add link:$PWD
+```
+
+### 安装失败退出码 127
+
+DSH 的 `dsh plugin` 底层会调用 `pnpm`。出现：
+
+```text
+dsh: pnpm was not found; install pnpm and make it available on PATH.
+```
+
+说明启动 DSH 的进程找不到 `pnpm`，不是插件本身安装失败。先确认：
+
+```bash
+command -v pnpm
+pnpm --version
+```
+
+如果终端能找到、但 Desktop/Web 图形界面仍失败，通常是 GUI 没有继承 shell 的
+`PATH`。安装 pnpm 到系统 PATH，或在对应 profile 的 `cordis.patch.yml` 中为
+`plugin-manager` 配置绝对路径：
+
+```yaml
+- id: plugin-manager
+  config:
+    pnpmCommand: /absolute/path/to/pnpm
+```
+
+然后重新运行安装命令。若 pnpm 缓存了旧的失败结果，可指定提交号：
+
+```bash
+dsh plugin --profile web add github:NexusAgentX/dsh-reasoning-effort#1186dbb
 ```
 
 ## License
