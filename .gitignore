@@ -1,5 +1,4 @@
 node_modules/
-lib/
 .codegraph/
 temp/
 *.log

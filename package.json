@@ -48,7 +48,7 @@
     "pretest": "node scripts/generate-model-catalog.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "prepack": "node scripts/generate-model-catalog.mjs && node build.mjs"
+    "prepublishOnly": "node scripts/generate-model-catalog.mjs && node build.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.4",

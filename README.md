@@ -74,6 +74,10 @@ pnpm run typecheck
 pnpm test
 ```
 
+`lib/` 是随 Git 仓库提交的构建产物。这样通过 GitHub URL 直接安装时不需要在
+安装生命周期中额外调用 `node` 或重新构建；修改源码后请运行 `pnpm run build`
+并一并提交 `lib/`。npm 发布前由 `prepublishOnly` 自动重新构建。
+
 ## 安装（本地源码）
 
 ```bash

@@ -1,0 +1,34 @@
+/** Localized copy owned by the reasoning settings section. */
+export declare const zh: {
+    readonly nav: "思考等级";
+    readonly title: "思考等级";
+    readonly loading: "正在加载…";
+    readonly loadFailed: "加载失败";
+    readonly retry: "重试";
+    readonly readOnly: "当前设置为只读。";
+    readonly empty: "模型页面中还没有用户添加的模型。";
+    readonly supportsReasoning: "支持思考";
+    readonly availableEfforts: "可用等级";
+    readonly wireValue: "请求值";
+    readonly notSent: "不发送";
+    readonly defaultEffort: "默认等级";
+    readonly providerDefault: "提供方默认";
+    readonly save: "保存更改";
+    readonly reset: "撤销更改";
+    readonly saved: "设置已保存";
+    readonly needsLevel: "至少启用一个非 off 等级。";
+    readonly invalidWire: "已启用等级必须填写请求值。";
+    readonly invalidDefault: "默认等级必须属于当前可用等级。";
+    readonly composerMenu: "模型与思考强度";
+    readonly composerSelectModel: "选择模型";
+    readonly composerBack: "返回思考强度";
+    readonly composerLoadingModels: "正在加载模型…";
+    readonly composerNoModels: "没有可用模型";
+    readonly composerNoEfforts: "当前模型未提供思考强度等级";
+    readonly composerEffort: "思考强度";
+    readonly composerRetry: "重试";
+    readonly composerTrigger: "{model}，思考强度 {effort}";
+    readonly composerSelectionFailed: "设置失败：{message}";
+};
+export declare const en: Record<keyof typeof zh, string>;
+export type ReasoningSettingsLocaleKey = keyof typeof zh;
