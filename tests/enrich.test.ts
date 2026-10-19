@@ -44,7 +44,7 @@ describe('computeEnrichmentOps', () => {
     }])
   })
 
-  it('backfills missing input and preserves an explicit input value', () => {
+  it('backfills a missing image-capable input, keeps explicit values, and never writes text-only', () => {
     const resolveInput = (modelId: string) => modelId === 'vision'
       ? ['text', 'image'] as const
       : modelId === 'text-only' ? ['text'] as const : undefined
@@ -54,6 +54,7 @@ describe('computeEnrichmentOps', () => {
           models: [
             { id: 'vision' },
             { id: 'text-only', input: ['text'] },
+            { id: 'text-only-fresh' },
             { id: 'kept', input: ['custom'] },
             { id: 'unknown' },
           ],
@@ -67,6 +68,7 @@ describe('computeEnrichmentOps', () => {
       value: [
         { id: 'vision', input: ['text', 'image'] },
         { id: 'text-only', input: ['text'] },
+        { id: 'text-only-fresh' },
         { id: 'kept', input: ['custom'] },
         { id: 'unknown' },
       ],

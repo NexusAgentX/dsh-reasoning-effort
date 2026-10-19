@@ -65,6 +65,23 @@ pnpm run generate:models  # 重新生成 src/model-catalog.generated.json
 pnpm run check:models     # 检查生成物是否与 TOML 一致
 ```
 
+### 视觉能力与 aliases
+
+`input` 回填只写含 `image` 的声明：text-only 不写（适配器默认本来就是 text，
+写死反而会让未来的目录修正无法生效，还会覆盖用户显式配置的 route 级
+`defaultInput`）。
+
+第三方网关发布的模型 id 拼写常与目录主名不同（如聚合网关的
+`deepseek-v4.1-flash`）。未收录时匹配失败会回退到适配器默认的
+`input = ["text"]`，或 fuzzy 错配到退役条目报出错误的 text-only——表现为
+“当前模型不支持图片”。新增网关拼写时把它收录为对应条目的 `aliases`
+（匹配时会取 `/` 尾部并去符号），并在 `tests/model-catalog.test.ts` 补
+alias 形态断言。
+
+升级插件后若某模型仍拒图，检查用户层 settings 中该模型条目是否已被旧版
+写死 `input: ["text"]`：插件只填空缺，不会覆盖既有值。手动删掉该字段，
+下次 settings 变化即按新目录重新回填。
+
 ## 构建
 
 ```bash

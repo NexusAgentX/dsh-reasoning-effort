@@ -7,7 +7,9 @@
  * through the web "custom provider" card (or wrote into settings.yaml) lives
  * there; the composition base is owned by its own bundle and is never
  * rewritten. Entries that already carry `reasoningEfforts`, `input`, or
- * capacities are always left alone. The plugin only fills absence.
+ * capacities are always left alone. The plugin only fills absence, and only
+ * with claims worth persisting: an image-capable `input` (text-only is the
+ * adapter default, so writing it would only freeze it).
  *
  * Each provider gets ONE `set` op for its whole `models` array (and one for
  * its `modelOverrides` dict) rather than a per-index op: the settings seam's
@@ -27,9 +29,12 @@ export type ModelCapacityResolver = (modelId: string) => ModelCapacity | undefin
 export type ModelCapabilityOverrideResolver = (providerId: string, modelId: string) => ReasoningCapability | undefined;
 /**
  * Compute the `set` ops that give only catalog-recognized model entries missing
- * `reasoningEfforts`, `input`, or capacities their supported capability
- * declarations. Capacities come from the same catalog match, so a third-party
- * DeepSeek route stops falling back to the adapter's 262,144 guess.
+ * `reasoningEfforts`, capacities, or an image-capable `input` their supported
+ * capability declarations. Capacities come from the same catalog match, so a
+ * third-party DeepSeek route stops falling back to the adapter's 262,144 guess.
+ * A text-only catalog match writes no `input`: the adapter defaults to text
+ * anyway, and persisting it would pin a correction-proof value into user
+ * settings and override a route-level `defaultInput` the user wrote.
  * @param user - the raw `llm-pi-ai` user section (detached descriptor copy).
  * @param resolveEfforts - returns a supported map for a recognized model.
  * @param resolveOverride - returns an explicit exact-route user override.
